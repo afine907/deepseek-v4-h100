@@ -49,7 +49,7 @@ chunk_size 太大：
 ## 配置设计
 
 ```yaml
-# config/chunked_prefill.yaml
+# configs/batching.yaml
 chunked_prefill:
   enabled: true
   chunk_size: 512              # tokens per chunk（可覆盖）

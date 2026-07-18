@@ -48,7 +48,7 @@
 ### 四层架构
 
 ```
-控制层（Auto-Tuner）
+控制层（调参接口 / Mock）
          ↓
 路由与调度层（Chunked Prefill + Continuous Batching）
          ↓
@@ -68,6 +68,8 @@
 | [LRU 淘汰流程](docs/srs/figures/architecture-diagrams.md#图-3lru-淘汰流程) | KV Cache 显存保护机制 |
 | [TP=8 分布式架构](docs/srs/figures/architecture-diagrams.md#图-4tp8-分布式架构) | 8×H100 NVLink 集群 |
 | [Continuous Batching 调度](docs/srs/figures/architecture-diagrams.md#图-5continuous-batching-调度) | 迭代级批处理示意 |
+| [P99 延迟对比](docs/srs/figures/architecture-diagrams.md#图-6优化前后延迟对比) | 假设基线对比 ⚠️ 待实测校准 |
+| [模块依赖关系](docs/srs/figures/architecture-diagrams.md#图-7模块依赖关系) | 核心模块之间的代码级依赖 |
 
 ---
 
@@ -122,7 +124,7 @@ pytest tests/unit/
 
 - 触发条件：显存 > 90%
 - 淘汰粒度：Block-level
-- 参考：[docs/brainstorming/02-kv-cache-lfu.md](docs/brainstorming/02-kv-cache-lfu.md)
+- 参考：[docs/brainstorming/02-kv-cache-lfu.md](docs/brainstorming/02-kv-cache-lfu.md)（⚠️ 文件名 `lfu` 为历史遗留，内容为 LRU）
 
 ### 2. Chunked Prefill
 
@@ -135,7 +137,7 @@ pytest tests/unit/
 
 ### 3. Continuous Batching
 
-迭代级批处理，最大化 GPU 利用率。
+迭代级批处理——在 TP=8 MoE 场景下采用等待结束再插入策略以最小化切换开销。
 
 - 不使用 Micro-Batching（TP=8 + MoE All-to-All overhead 考量）
 - max_batch_size：32
@@ -184,7 +186,7 @@ deepseek-v4-h100/
 │   ├── inference_engine.py    # vLLM 引擎封装
 │   ├── metrics_exporter.py    # Prometheus 指标
 │   └── control/
-│       └── auto_tuner.py      # 自动调优
+│       └── tuner_interface.py  # Mock 预留
 ├── tests/                     # 测试
 │   ├── unit/                  # 单元测试
 │   ├── integration/            # 集成测试

@@ -57,12 +57,16 @@ ENV NCCL_DEBUG_FILE=/tmp/nccl_log
 
 ### Continuous Batching（等待结束再插入）
 
+> **释义：** "等待结束再插入" 指在**解码迭代边界**检查新请求并插入，而非强制等到整个 batch 完全空闲（后者才是纯 Continuous Batching 的区别点）。在 TP=8 + MoE 场景下，迭代边界插入比完全空闲时才插入能更好地平衡 All-to-All 切换开销。
+
 ```
 时间 →
 ┌──────────────────────────────────────────────────────────┐
-│ Batch 1: [ReqA][ReqB][ReqC][ReqD]  ← 等待凑满或超时   │
-│              ↓ Batch 1 全部完成                           │
-│ Batch 2: [ReqE][ReqF][ReqG][ReqH]  ← 下一批            │
+│ Batch 1: [ReqA][ReqB][ReqC][ReqD]                       │
+│              │ 迭代边界 → 检查新请求                          │
+│              ReqE 插入 → [ReqA][ReqB][ReqC][ReqD][ReqE]   │
+│              │ 迭代边界 → 检查新请求                          │
+│              ReqF 插入 → [ReqB][ReqC][ReqD][ReqE][ReqF]   │
 └──────────────────────────────────────────────────────────┘
 
 对比 Micro-Batching：

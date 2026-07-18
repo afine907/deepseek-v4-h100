@@ -1,0 +1,19 @@
+# KV Cache 配置
+# 参考: docs/brainstorming/02-kv-cache-lfu.md
+
+kv_cache:
+  # 淘汰策略
+  eviction_policy: "LRU"  # Least Recently Used
+
+  # 淘汰触发水位
+  high_watermark: 0.90   # 显存 > 90% 触发淘汰
+  low_watermark: 0.75     # 显存降至 75% 停止淘汰
+
+  # 淘汰粒度
+  block_level: true       # Block-level 淘汰
+
+  # 单次淘汰上限
+  max_evict_per_round: 50
+
+  # 最小可用 block 数（触发条件2）
+  min_free_blocks: 10

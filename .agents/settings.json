@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash:pytest tests/ -m mock -v",
+      "Bash:pytest tests/unit/ -v",
+      "Bash:pytest tests/ --cov=src --cov-report=term-missing",
+      "Bash:pip install -r requirements-dev.txt",
+      "Bash:docker build -t deepseek-v4-h100 .",
+      "Bash:bash launch_h100.sh --help",
+      "Bash:git add *",
+      "Bash:git checkout -b *",
+      "Bash:git status",
+      "Bash:git diff",
+      "Bash:git log --oneline -5",
+      "Read:AGENTS.md",
+      "Read:docs/**/*.md",
+      "Read:src/**/*.md",
+      "Read:tests/**/*.md",
+      "Read:.dwp/**/*.md"
+    ],
+    "deny": []
+  },
+  "goals": {
+    "testCoverage": {
+      "scheduler.py": 0.8,
+      "kv_cache_manager.py": 0.8,
+      "inference_engine.py": 0.7,
+      "metrics_exporter.py": 0.7,
+      "control/tuner_interface.py": 0.6,
+      "overall": 0.75
+    }
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s %(name)s %(levelname)s %(message)s"
+  }
+}

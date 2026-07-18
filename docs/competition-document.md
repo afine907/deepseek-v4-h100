@@ -4,7 +4,7 @@
 
 > **版本：** v1.0
 > **日期：** 2026-07-18
-> **状态：** 初稿
+> **状态：** 初始版
 
 ---
 
@@ -44,7 +44,7 @@
 ```mermaid
 graph TB
     subgraph Control["控制层"]
-        AT[自动调优器<br/>Auto-Tuner]
+        AT[调参接口<br/>(预留/Mock)]
     end
 
     subgraph Routing["路由与调度层"]
@@ -63,7 +63,7 @@ graph TB
         H[健康检查<br/>/health]
     end
 
-    AT -->|调参| SG
+    AT -.->|调参| SG
     SG --> CP
     SG --> BATCH
     CP --> VLLM
@@ -145,6 +145,8 @@ graph LR
 
 ### 3.1 KV Cache 精细化管理（LRU 淘汰）
 
+> 详细规格见 [SRS-00-draft.md §3.1.1](docs/srs/SRS-00-draft.md#§311-kv-cache-管理)
+
 **策略：** LRU（Least Recently Used），最近最少使用优先淘汰。
 
 **触发条件（满足任一）：**
@@ -162,6 +164,8 @@ graph LR
 
 ### 3.2 Chunked Prefill（分块预填充）
 
+> 详细规格见 [SRS-00-draft.md §3.1.2](docs/srs/SRS-00-draft.md#§312-chunked-prefill-调度)
+
 **策略：** 将长输入切分为 512 tokens/块，逐块 prefill，不阻塞 Decode 阶段。
 
 **配置：**
@@ -177,7 +181,7 @@ graph LR
 调度优先级 = request_remaining_tokens / (1 + wait_time × 0.1)
 ```
 
-**效果示意：**
+**效果示意：**（ Continuous Batching 调度图见[架构图 5](docs/srs/figures/architecture-diagrams.md#图-5continuous-batching-调度)）
 
 ```
 优化前（长请求阻塞）：
@@ -189,13 +193,17 @@ graph LR
 
 ### 3.3 Continuous Batching（连续批处理）
 
-**策略：** 迭代级调度，batch 完成后立即插入新请求，不等待下一批凑满。
+> 详细规格见 [SRS-00-draft.md §3.1.3](docs/srs/SRS-00-draft.md#§313-批处理调度)
+
+**策略：** 在解码迭代边界插入新请求（迭代级批处理），避免纯连续批处理在 MoE All-to-All 切换中的额外开销。
 
 **不采用 Micro-Batching 的原因：**
 - TP=8 + MoE All-to-All 场景下，micro-batch 切换 overhead 大于收益
 - MoE 长请求为主，等待 batch 结束的利用率损失可接受
 
 ### 3.4 TP=8 张量并行
+
+> 详细规格见 [SRS-00-draft.md §3.1.4](docs/srs/SRS-00-draft.md#§314-张量并行tp8)
 
 **策略：** 8×H100 全互联 NVLink，张量并行 TP=8。
 
@@ -253,7 +261,7 @@ NCCL_IB_RETRY_CNT=7
 | 4 | `src/scheduler.py` | Chunked Prefill + Continuous Batching |
 | 5 | `src/inference_engine.py` | vLLM 引擎封装 |
 | 6 | `src/metrics_exporter.py` | Prometheus 指标暴露 |
-| 7 | `src/control/auto_tuner.py` | 自动调优（参赛亮点） |
+| 7 | `src/control/tuner_interface.py` | 调参接口（Mock 预留） |
 | 8 | `tests/benchmark_*.py` | SWE-bench 评测脚本 |
 | 9 | `docs/REPRODUCTION.md` | 基线 vs 优化对比文档 |
 | 10 | `README.md` | 项目说明 |
@@ -270,7 +278,9 @@ bash launch_h100.sh \
 
 ## 七、接口契约
 
-### 7.1 控制层 ↔ 调度层（gRPC）
+### 7.1 控制层 ↔ 调度层（gRPC，Mock 预留）
+
+> ⓘ 控制层 gRPC 为预留接口，参赛版仅做 Mock 实现。实时调优闭环在 4 小时赛程内不启用。
 
 ```protobuf
 service SchedulerControl {

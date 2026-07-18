@@ -1,0 +1,18 @@
+# 调度器配置
+
+scheduler:
+  # 请求超时
+  request_timeout_s: 30    # 单请求超时强制 kill
+
+  # 并发控制
+  max_concurrent_requests: 64
+
+  # 健康检查
+  health_check_interval_s: 30
+  health_check_endpoint: "/health"  # vLLM 内置
+
+  # 队列
+  queue_max_size: 1024
+
+  # 长度截断
+  max_input_length: 8192   # 超过则截断（待按 max_seq_len 调整）

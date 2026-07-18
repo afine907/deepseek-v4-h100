@@ -1,6 +1,6 @@
 # 系统需求规格说明书 (SRS)
 
-> **状态：** 🟡 草稿 · 头脑风暴中
+> **状态：** 🟡 草案 · 待最终确定
 > **版本：** v0.1
 > **日期：** 2026-07-18
 > **项目：** DeepSeek-V4-Flash 8×H100 推理优化系统
@@ -80,7 +80,7 @@
 
 ```
 ┌─────────────────────────────────────────────┐
-│  控制层 / Agent（自动调优接口）               │  ← 2周版：可实现
+│  控制层 / Agent（调参接口）← 2周版：Mock/预留，不启用实时闭环 │
 ├─────────────────────────────────────────────┤
 │  推理引擎层（vLLM / FP8 / TP=8）            │  ← 核心层
 ├─────────────────────────────────────────────┤
@@ -91,7 +91,7 @@
 ```
 
 **决策记录（详见 `docs/brainstorming/`）：**
-- ✅ 2周时间足够，控制层自动调优可实现
+- ✅ 控制层自动调优砍掉（参赛版不实现），预留接口/Mock。实时闭环不在4小时赛程范围内。
 - ✅ KV Cache 淘汰策略：LRU
 - ✅ Chunked Prefill chunk_size：假设 512 tokens（待基线实测校准）
 - ✅ 接口协议：gRPC（进程内调用，不做 Streaming）
@@ -140,29 +140,7 @@
 | 淘汰触发 | 显存使用率 > 高水位（默认 90%），或可用 block < 最低阈值 |
 | 淘汰粒度 | Block-level |
 
-**参考：** `docs/brainstorming/02-kv-cache-lfu.md`
-
-#### 3.1.2 批处理调度
-
-| 功能 | 规格 |
-|------|------|
-| 批处理模式 | Continuous Batching（等待结束再插入） |
-| max_batch_size | 32 |
-| prefill_ratio | 0.3（保守，防长请求霸占 GPU） |
-| max_wait_time_ms | 100ms（凑批超时，强制执行） |
-| Micro-Batching | 不启用（TP=8 + MoE All-to-All 场景下 overhead 大） |
-
-**参考：** `docs/brainstorming/06-tp8-nccl.md`
-
-#### 3.1.3 张量并行（TP=8）
-
-| 功能 | 规格 |
-|------|------|
-| 并行策略 | TP=8（张量并行 8 卡） |
-| 通信优化 | NCCL 环境变量调参 |
-| 负载均衡 | vLLM MoE 默认负载均衡（需确认开启） |
-
-**参考：** `docs/brainstorming/06-tp8-nccl.md`
+**参考：** `docs/brainstorming/02-kv-cache-lfu.md`（⚠️ 文件名 `lfu` 为历史遗留，内容为 LRU）（⚠️ 文件名 `lfu` 为历史遗留，内容为 LRU）
 
 #### 3.1.2 Chunked Prefill 调度
 
@@ -175,7 +153,29 @@
 
 **参考：** `docs/brainstorming/03-chunked-prefill-assumption.md`
 
-#### 3.1.3 推理引擎
+#### 3.1.3 批处理调度
+
+| 功能 | 规格 |
+|------|------|
+| 批处理模式 | Continuous Batching（在解码迭代边界插入，非等到 batch 完全空闲） |
+| max_batch_size | 32 |
+| prefill_ratio | 0.3（保守，防长请求霸占 GPU） |
+| max_wait_time_ms | 100ms（凑批超时，强制执行） |
+| Micro-Batching | 不启用（TP=8 + MoE All-to-All 场景下 overhead 大） |
+
+**参考：** `docs/brainstorming/06-tp8-nccl.md`
+
+#### 3.1.4 张量并行（TP=8）
+
+| 功能 | 规格 |
+|------|------|
+| 并行策略 | TP=8（张量并行 8 卡） |
+| 通信优化 | NCCL 环境变量调参 |
+| 负载均衡 | vLLM MoE 默认负载均衡（需确认开启） |
+
+**参考：** `docs/brainstorming/06-tp8-nccl.md`
+
+#### 3.1.5 推理引擎
 
 | 功能 | 规格 |
 |------|------|
@@ -184,13 +184,13 @@
 | 张量并行 | TP=8 |
 | 批处理 | 动态连续批处理（Continuous Batching） |
 
-#### 3.1.4 控制层（自动调优）
+#### 3.1.6 控制层接口（预留/Mock）
 
 | 功能 | 规格 |
 |------|------|
+| 接口 | 手动调参接口（Mock 实现） |
 | 调参范围 | batch_size, chunk_size, kv_cache_high_watermark |
-| 收敛方式 | 网格搜索 / 贝叶斯优化（待定） |
-| 决策周期 | 每 N 个请求或每 M 分钟触发一次 |
+| 调参方式 | 人工触发（参赛版不启用实时闭环） |
 
 **参考：** `docs/brainstorming/01-scope.md`
 
@@ -280,7 +280,7 @@
 | 健康检查 | `/health` 端点（vLLM 内置） |
 | 自动重启 | 交由容器基础设施（Docker/k8s），代码层不做 |
 
-**参考：** `docs/brainstorming/02-kv-cache-lfu.md`
+**参考：** `docs/brainstorming/02-kv-cache-lfu.md`（⚠️ 文件名 `lfu` 为历史遗留，内容为 LRU）
 
 ### 3.6 交付物需求
 
@@ -290,7 +290,7 @@
 | 2 | 启动脚本 | `launch_h100.sh` |
 | 3 | 核心优化代码 | `src/kv_cache_manager.py`, `src/scheduler.py` |
 | 4 | Prometheus 指标 | `src/metrics_exporter.py` |
-| 5 | 自动调优 | `src/control/auto_tuner.py` |
+| 5 | 调参接口（Mock 预留） | `src/control/tuner_interface.py` |
 | 6 | 评测脚本 | `tests/benchmark_*.py` |
 | 7 | 实验复现文档 | `docs/REPRODUCTION.md` |
 | 8 | 项目说明 | `README.md` |
@@ -312,6 +312,152 @@
 | `docs/brainstorming/05-metrics-assumption.md` | 量化指标假设 | ✅ |
 | `docs/brainstorming/06-tp8-nccl.md` | TP=8 + 批处理策略 | ✅ |
 | `docs/brainstorming/07-batching-strategy.md` | 批处理策略（合并至 06） | ✅ |
+
+### 4.2 项目结构
+
+```
+deepseek-v4-h100/
+├── docs/
+│   ├── srs/
+│   │   ├── SRS-00-draft.md      ← 当前文件
+│   │   ├── figures/            ← 架构图、时序图
+│   │   └── SRS-01-final.md     ← 定稿版（头脑风暴结束后）
+│   ├── brainstorming/         ← 决策过程记录
+│   └── original-requirements.md ← 原始需求归档
+├── src/                       ← 代码（头脑风暴后创建）
+├── configs/                   ← 配置文件
+├── scripts/                   ← 启动脚本
+├── tests/                     ← 评测脚本
+└── README.md
+```
+
+
+| 功能 | 规格 |
+|------|------|
+| 接口 | 手动调参接口（Mock 实现） |
+| 调参范围 | batch_size, chunk_size, kv_cache_high_watermark |
+| 调参方式 | 人工触发（参赛版不启用实时闭环） |
+
+**参考：** `docs/brainstorming/01-scope.md`
+
+### 3.2 性能需求
+
+> ⚠️ 以下为假设值，待基线实测后校准。真实数据见 `docs/brainstorming/05-metrics-assumption.md`
+
+#### 3.2.1 延迟指标
+
+| 指标 | 基线（假设） | 优化目标 |
+|------|------------|---------|
+| P50 延迟 | 1.5 s | < 1.0 s |
+| P90 延迟 | 5.0 s | < 3.0 s |
+| P99 延迟 | 10.0 s | < 5.0 s |
+
+#### 3.2.2 吞吐指标
+
+| 指标 | 基线（假设） | 优化目标 |
+|------|------------|---------|
+| QPS | 50 | > 100 |
+| GPU 利用率 | 50% | > 80% |
+
+#### 3.2.3 显存指标
+
+| 指标 | 基线（假设） | 优化目标 |
+|------|------------|---------|
+| KV Cache 命中率 | 40% | > 70% |
+| 显存峰值占用 | 75 GB | < 70 GB |
+
+#### 3.2.4 评测指标
+
+| 指标 | 目标 |
+|------|------|
+| SWE-bench 请求完成率 | > 99% |
+| 超时率（30s阈值） | < 1% |
+
+### 3.3 接口需求
+
+#### 3.3.1 控制层 ↔ 调度层
+
+| 项目 | 内容 |
+|------|------|
+| 协议 | **gRPC** |
+| 功能 | 调参指令下发、状态查询 |
+| 参数 | batch_size, chunk_size, kv_cache_watermark, max_concurrent_requests |
+| Streaming | **不做** |
+| 参考 | `docs/brainstorming/04-api-contracts.md` |
+
+#### 3.3.2 调度层 ↔ 推理引擎层
+
+| 项目 | 内容 |
+|------|------|
+| 协议 | **Python 函数调用（进程内）** |
+| 核心接口 | submit() / get_result() / cancel() / get_queue_status() |
+| 数据格式 | InferenceRequest / InferenceResponse（见 04-api-contracts.md） |
+
+#### 3.3.3 推理引擎层 → 可观测层
+
+| 项目 | 内容 |
+|------|------|
+| 协议 | Prometheus Pushgateway 或 OpenTelemetry |
+| 暴露指标 | 延迟直方图 / 吞吐量计数 / GPU 显存仪表 / KV Cache 命中率 |
+| 参考 | `docs/brainstorming/04-api-contracts.md` §3
+
+### 3.4 可观测性需求
+
+| 类型 | 指标 | 说明 |
+|------|------|------|
+| 延迟 | inference_latency_ms, prefill_latency_ms, decode_latency_ms, ttft_ms | Histogram |
+| 吞吐 | requests_total, requests_failed_total, tokens_generated_total | Counter |
+| 显存 | gpu_memory_used_bytes, kv_cache_blocks_used | Gauge（按 gpu_id 分 labels） |
+| 缓存 | kv_cache_hit_rate | Gauge |
+| 队列 | queue_length, active_requests | Gauge |
+| 事件 | kv_cache_evicted_total, oom_events_total | Counter |
+
+**暴露方式：** `/metrics` 端点，Prometheus 抓取格式
+
+**参考：** `docs/brainstorming/04-api-contracts.md` §3
+
+### 3.5 容错与自愈需求
+
+| 功能 | 规格 |
+|------|------|
+| 防 OOM | KV Cache LRU 淘汰（>90% 触发）+ 单请求显存预算限制 |
+| 防长尾抖动 | Chunked Prefill + prefill_ratio=0.3 限制 |
+| 超时保护 | 单请求 30s 强制 kill |
+| 健康检查 | `/health` 端点（vLLM 内置） |
+| 自动重启 | 交由容器基础设施（Docker/k8s），代码层不做 |
+
+**参考：** `docs/brainstorming/02-kv-cache-lfu.md`（⚠️ 文件名 `lfu` 为历史遗留，内容为 LRU）
+
+### 3.6 交付物需求
+
+| # | 交付物 | 文件 |
+|---|--------|------|
+| 1 | Docker 镜像 | `Dockerfile` |
+| 2 | 启动脚本 | `launch_h100.sh` |
+| 3 | 核心优化代码 | `src/kv_cache_manager.py`, `src/scheduler.py` |
+| 4 | Prometheus 指标 | `src/metrics_exporter.py` |
+| 5 | 调参接口（Mock 预留） | `src/control/tuner_interface.py` |
+| 6 | 评测脚本 | `tests/benchmark_*.py` |
+| 7 | 实验复现文档 | `docs/REPRODUCTION.md` |
+| 8 | 项目说明 | `README.md` |
+
+**一键启动验证：** `bash launch_h100.sh --model deepseek-v4-flash --tensor-parallel-size 8`
+
+---
+
+## 4. 附录
+
+### 4.1 头脑风暴记录与决策追溯
+
+| 决策 | 来源文件 | SRS 章节 | 状态 |
+|------|---------|---------|------|
+| 自动调优砍掉 → Mock 预留 | `01-scope.md` | §3.1.6 | ✅ |
+| KV Cache LRU 淘汰策略 | `02-kv-cache-lfu.md` | §3.1.1 | ✅ |
+| Chunked Prefill chunk_size=512 | `03-chunked-prefill-assumption.md` | §3.1.2 | ✅ |
+| gRPC 接口 + Mock | `04-api-contracts.md` | §3.1.6 | ✅ |
+| 指标假设（待实测校准） | `05-metrics-assumption.md` | §3.2 | ✅ |
+| TP=8 + Continuous Batching | `06-tp8-nccl.md` | §3.1.3, §3.1.4 | ✅ |
+| 批处理策略（合并至 06） | `07-batching-strategy.md` | §3.1.3 | ✅ |
 
 ### 4.2 项目结构
 

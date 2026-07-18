@@ -1,0 +1,7 @@
+# 开发依赖
+# 用于本地无 GPU 环境下的 Mock 测试和单元测试
+
+pytest>=7.4.0
+pytest-mock>=3.12.0
+prometheus-client>=0.19.0
+grpcio-tools>=1.59.0  # 用于编译 .proto 文件（可选）

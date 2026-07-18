@@ -1,0 +1,31 @@
+# 批处理调度配置
+# 参考: docs/brainstorming/06-tp8-nccl.md, docs/brainstorming/03-chunked-prefill-assumption.md
+
+batching:
+  # 连续批处理（迭代级插入，非等到 batch 完全空闲）
+  mode: "continuous"  # 不用 Micro-Batching（TP=8 + MoE All-to-All overhead 大）
+
+  # 批处理大小
+  max_batch_size: 32
+  max_tokens_per_batch: 8192
+
+  # Prefill 占比限制
+  prefill_ratio: 0.3   # 防长请求霸占 GPU
+
+  # 凑批超时
+  max_wait_time_ms: 100  # 超过则强制执行
+
+  # Decode 槽位保护
+  min_decode_slots: 8   # 防止 decode 被饿死
+
+  # 反饥饿
+  aging_factor: 0.1     # 长请求优先级提升
+
+chunked_prefill:
+  enabled: true
+  chunk_size: 512        # tokens/块（假设值，待实测校准）
+  max_chunks_per_request: 64
+  prefill_credit_budget: 2  # 每次最多占用的 token budget
+
+  # 反饥饿优先级
+  # 优先级分数 = request_remaining_tokens / (1 + wait_time * aging_factor)

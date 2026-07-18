@@ -40,6 +40,8 @@
 
 **调用方式：** HTTP REST 或 gRPC（推荐 gRPC，性能更高）
 
+> ⓘ 控制层 gRPC 为预留接口，参赛版仅做 Mock 实现。实时调优闭环在 4 小时赛程内不启用。
+
 ```protobuf
 // scheduler_control.proto
 service SchedulerControl {
@@ -200,7 +202,7 @@ class MockInferenceEngine:
 
 | # | 问题 | 决策 |
 |---|------|------|
-| 1 | 控制层通信协议 | **gRPC** ✅ |
+| 1 | 控制层通信协议 | **gRPC（预留/Mock）** ✅ |
 | 2 | Streaming 输出 | **不做**（参赛重点在吞吐和延迟） |
 | 3 | KV Cache 淘汰回调 | **不做**（控制层靠 Prometheus 轮询） |
 | 4 | 调度↔引擎跨进程 | **进程内**（初期快速联调） |

@@ -9,7 +9,7 @@
 ```mermaid
 graph TB
     subgraph Control["控制层"]
-        AT[自动调优器<br/>Auto-Tuner]
+        AT[调参接口<br/>(预留/Mock)]
     end
 
     subgraph Routing["路由与调度层"]
@@ -28,7 +28,7 @@ graph TB
         H[健康检查<br/>/health]
     end
 
-    AT -->|调参| SG
+    AT -.->|调参| SG
     SG --> CP
     SG --> BATCH
     CP --> VLLM
@@ -153,7 +153,7 @@ xychart-beta
     line [10, 4.5]
 ```
 
-> ⚠️ 基线为假设值，待实测后更新。
+> ⚠️ 基线为假设值，待实测后更新。数据来源：`docs/brainstorming/05-metrics-assumption.md`
 
 ---
 
@@ -162,7 +162,7 @@ xychart-beta
 ```mermaid
 graph TD
     subgraph src["src/"]
-        AE[auto_tuner.py]
+        AE[tuner_interface.py]
         SE[scheduler.py]
         KE[kv_cache_manager.py]
         IE[inference_engine.py]
@@ -175,11 +175,13 @@ graph TD
         KC[kv_cache.yaml]
     end
 
-    AE -->|UpdateConfig| SE
+    AE -.->|UpdateConfig| SE
     SE --> KE
     SE --> IE
     IE --> ME
     SE -->|chunk_size| KC
     SE -->|batch_size| BC
-    AE -->|tensor_parallel| MC
+    AE -.->|tensor_parallel| MC
 ```
+
+> 图 7 代码路径来源：`README.md §项目结构`
