@@ -1,0 +1,53 @@
+services:
+  vllm:
+    image: vllm/vllm-openai:v0.25.1
+    container_name: local-vllm
+    # CPU mode — 无 GPU 时使用
+    environment:
+      - VLLM_CPU_KVCACHE_SPACE_GB=4
+    volumes:
+      # 挂载 WSL2 HuggingFace cache 到容器内，模型已在 WSL2 下载
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    # 如有 GPU，注释掉上面 VLLM_CPU_KVCACHE_SPACE_GB，取消下面 deploy 配置的注释：
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    command: >
+      --model Qwen/Qwen2.5-0.5B-Instruct
+      --host 0.0.0.0
+      --port 8000
+      --dtype bfloat16
+      --max-model-len 512
+      --enforce-eager
+    ports:
+      - "8000:8000"
+    networks:
+      - llm-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/v1/models || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: local-openwebui
+    depends_on:
+      vllm:
+        condition: service_healthy
+    environment:
+      - OLL_API_BASE_URL=http://vllm:8000/v1
+      - WEBUI_AUTH=false
+    ports:
+      - "8080:8080"
+    networks:
+      - llm-net
+
+networks:
+  llm-net:
+    driver: bridge

@@ -36,8 +36,9 @@ class KVCacheManager(KVCacheManagerPort):
         self._lock = threading.Lock()
 
     def set_max_blocks(self, max_blocks: int) -> None:
-        """Set max blocks based on available GPU memory."""
-        self._max_blocks = max_blocks
+        """Set max blocks based on available GPU memory. Thread-safe."""
+        with self._lock:
+            self._max_blocks = max_blocks
 
     def _evict_locked(self) -> int:
         """

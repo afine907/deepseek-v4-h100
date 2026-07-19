@@ -1,5 +1,5 @@
 # KV Cache 配置
-# 参考: docs/brainstorming/02-kv-cache-lfu.md
+# 参考: docs/brainstorming/02-kv-cache-lru.md
 
 kv_cache:
   # 淘汰策略
