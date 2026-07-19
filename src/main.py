@@ -134,16 +134,68 @@ def run_server(scheduler: Scheduler, host: str = "0.0.0.0", port: int = 8000) ->
     uvicorn.run(app, host=host, port=port)
 
 
+def main_tune_mode(args) -> None:
+    """Run the tuning agent in mock or real mode."""
+    from src.agent.tuner_agent import TunerAgent
+    from src.agent.benchmark_runner import MockBenchmarkRunner, BenchmarkRunner
+    from src.control.tuner_interface import RESTTuner
+    from src.config.settings import get_settings
+
+    settings = get_settings()
+
+    # Choose benchmark runner
+    if args.backend == "mock":
+        runner = MockBenchmarkRunner(num_requests=args.num_requests)
+    else:
+        # Real benchmark runner needs an engine
+        scheduler = create_vllm_mode()
+        runner = BenchmarkRunner(engine=scheduler, num_requests=args.num_requests)
+
+    # Choose LLM provider
+    llm_provider = args.agent_provider or settings.agent.llm_provider
+    llm_model = settings.agent.model_name
+
+    tuner = RESTTuner(base_url=args.tuner_url)
+    initial_config = {
+        "batch_size": settings.batching.max_batch_size,
+        "chunk_size": 512,
+        "kv_cache_high_watermark": settings.kv_cache.high_watermark,
+        "prefill_ratio": settings.batching.prefill_ratio,
+    }
+
+    agent = TunerAgent(
+        tuner_interface=tuner,
+        benchmark_runner=runner,
+        config=initial_config,
+        max_iterations=args.max_iterations,
+        llm_provider=llm_provider,
+        llm_model=llm_model,
+    )
+
+    result = agent.tune()
+    logger.info(f"Tuning complete: converged={result.converged}, rounds={result.total_rounds}")
+    logger.info(f"Final config: {result.final_config}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="DeepSeek-V4-Flash inference system")
     parser.add_argument(
         "--mode",
-        choices=["mock", "server"],
+        choices=["mock", "server", "tune"],
         default="mock",
-        help="mock: use MockInferenceEngine (no vLLM); server: use vLLM adapter",
+        help="mock: demo with MockInferenceEngine; server: vLLM adapter; tune: LLM Agent tuning",
     )
     parser.add_argument("--host", default="0.0.0.0", help="Server host")
     parser.add_argument("--port", type=int, default=8000, help="Server port")
+    parser.add_argument("--backend", default="mock", help="mock: MockBenchmarkRunner; real: BenchmarkRunner with engine")
+    parser.add_argument("--tuner-url", default="http://localhost:8000", help="Tuner server URL")
+    parser.add_argument(
+        "--agent-provider",
+        choices=["claude", "openai", "mock"],
+        help="LLM provider for tuning decisions",
+    )
+    parser.add_argument("--max-iterations", type=int, default=10, help="Max tuning iterations")
+    parser.add_argument("--num-requests", type=int, default=100, help="Requests per benchmark run")
     args = parser.parse_args()
 
     settings = get_settings()
@@ -152,9 +204,11 @@ def main() -> None:
     if args.mode == "mock":
         scheduler = create_mock_mode()
         run_mock_demo(scheduler)
-    else:
+    elif args.mode == "server":
         scheduler = create_vllm_mode()
         run_server(scheduler, host=args.host, port=args.port)
+    else:  # tune
+        main_tune_mode(args)
 
 
 if __name__ == "__main__":
