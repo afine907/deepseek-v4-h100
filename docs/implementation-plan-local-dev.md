@@ -8,13 +8,13 @@
 
 ## 一、背景与目标
 
-项目当前处于纯文档阶段（12 个 `.md` 文件），没有任何源代码。由于 H100 机器需要到比赛测试阶段才能使用，因此需要在 **WSL2 (Ubuntu 22.04, CPU-only, 16核/15GB)** 环境中先跑通核心调优代码。
+项目当前处于纯文档阶段（12 个 `.md` 文件），没有任何源代码。由于 H100 机器需要到比赛测试阶段才能使用，因此需要在 **WSL2 (Ubuntu 22.04, CPU-only, 16核/12GB)** 环境中先跑通核心调优代码。
 
 **最终目标：** 在 8×H100 上运行 DeepSeek-V4-Flash (FP8, TP=8)，核心调度/缓存/调优逻辑必须在本地可验证。
 
 **用户选定的方案：**
-- 开发环境：WSL2 全环境（vLLM + Qwen2.5-0.5B）
-- 测试模型：Qwen2.5-0.5B-Instruct（CPU 可跑）
+- 开发环境：WSL2 全环境（vLLM CPU-only + Qwen3.5-0.8B），WSL2 内存上限保持 12GB，不修改 `.wslconfig`
+- 测试模型：Qwen3.5-0.8B（CPU 上用于功能/链路验证）
 - 调优方式：LLM Agent 驱动（接入 Claude/GPT API 做自优化循环）
 - 架构：六边形架构（Ports & Adapters），核心调优代码与具体推理后端解耦
 
@@ -80,7 +80,9 @@
 
 | 环境 | backend | model | tp | 量化 |
 |------|---------|-------|----|------|
-| WSL2 (CPU) | vllm_cpu | Qwen/Qwen2.5-0.5B-Instruct | 1 | float32 |
+| WSL2 (CPU) | vllm_cpu | Qwen/Qwen3.5-0.8B | 1 | bfloat16 |
+
+> 本地资源护栏：WSL2 保持 12GB 内存上限，不修改 `.wslconfig`；Qwen3.5-0.8B 使用 Gated DeltaNet + MoE 架构，支持 `bfloat16`（本机具备 `avx512_bf16`），0.8B 模型权重远小于 2B 版本，KV Cache 可用空间大幅增加。推荐配置：`max_model_len=8192`、`max_num_seqs=8`、`gpu_memory_utilization=0.60`、`kv_cache_memory_bytes=536870912`（512MB）、`OMP_NUM_THREADS=12`、`MKL_NUM_THREADS=12`。本地只验收功能、稳定性与指标链路，不用其吞吐/延迟对标 H100。
 | H100 (生产) | vllm | deepseek-ai/DeepSeek-V4-Flash | 8 | fp8 |
 
 切换方式：修改 `configs/model.yaml`，核心代码零改动。
@@ -136,7 +138,7 @@ tests/
 
 ### Phase 1：WSL2 环境准备
 
-**目标：** 在 WSL2 中安装 vLLM (CPU mode) + Qwen2.5-0.5B-Instruct，验证单条推理能跑通。
+**目标：** 在 WSL2 中安装 vLLM (CPU mode) + Qwen3.5-0.8B，验证单条推理能跑通。
 
 **步骤：**
 
@@ -146,19 +148,20 @@ tests/
 4. 安装 PyTorch (CPU-only): `pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu`
 5. 安装 transformers + accelerate + sentencepiece
 6. 安装 vLLM (CPU backend): `pip install vllm`
-7. 下载 Qwen2.5-0.5B-Instruct（HuggingFace）
-8. 验证：
+7. 下载 Qwen3.5-0.8B（HuggingFace）
+8. 在 12GB WSL2 内存预算内，设置 `OMP_NUM_THREADS=12`、`MKL_NUM_THREADS=12`、`dtype=bfloat16`、`max_model_len=8192`、`max_num_seqs=8`、`gpu_memory_utilization=0.60`、`kv_cache_memory_bytes=536870912` 并完成单请求生成验证
 
 ```bash
-python -c "from vllm import LLM; \
-  llm = LLM(model='Qwen/Qwen2.5-0.5B-Instruct', dtype='float32'); \
-  print(llm.generate('Hello', max_tokens=10))"
+export OMP_NUM_THREADS=12 MKL_NUM_THREADS=12 TOKENIZERS_PARALLELISM=false
+python -c "from vllm import LLM, SamplingParams; \
+  llm = LLM(model='Qwen/Qwen3.5-0.8B', dtype='bfloat16', tensor_parallel_size=1, max_model_len=8192, max_num_seqs=8, gpu_memory_utilization=0.60, kv_cache_memory_bytes=536870912, enforce_eager=True); \
+  print(llm.generate(['Hello'], SamplingParams(max_tokens=10, temperature=0.0)))"
 ```
 
 **WSL2 环境规格：**
 - OS: Ubuntu 22.04.5 LTS
 - CPU: AMD Ryzen 7 H 255 (16核)
-- 内存: 15GB
+- 内存: 12GB
 - 磁盘: 953GB 可用
 - Python: 3.10.12
 
@@ -236,7 +239,7 @@ class KVCacheManagerPort(ABC):
 #### 2.4 vLLM Adapter (`src/adapters/vllm_adapter.py`)
 
 - 封装 `vllm.LLM` 或 `vllm.AsyncLLMEngine`
-- WSL2 模式：CPU backend，Qwen2.5-0.5B，TP=1
+- WSL2 模式：CPU backend，Qwen3.5-0.8B，TP=1，`max_model_len=8192`，`max_num_seqs=8`
 - H100 生产模式：GPU，DeepSeek-V4-Flash，TP=8，FP8
 - 通过配置切换 adapter
 
@@ -312,14 +315,14 @@ System prompt 包含：
 
 ### Phase 4：本地验证
 
-**目标：** 在 WSL2 中用 Qwen2.5-0.5B 跑通全流程。
+**目标：** 在 WSL2 中用 Qwen3.5-0.8B 跑通全流程。
 
 测试场景：
 
 | 模式 | 说明 | 验证内容 |
 |------|------|---------|
 | Mock 模式 | 不装 vLLM，用 Mock Adapter | 调度逻辑正确性 |
-| vLLM CPU 模式 | Qwen2.5-0.5B，小批量请求 | 框架联通性 |
+| vLLM CPU 模式 | Qwen3.5-0.8B，小批量请求 | 框架联通性 |
 | 批量压测 | 模拟 SWE-bench 负载 | Chunked Prefill + Continuous Batching |
 
 **Mock 模式验证（立即可测）：**
@@ -329,7 +332,7 @@ python src/main.py --mode mock --benchmark tests/data/swe_sample.json
 
 **vLLM CPU 模式验证：**
 ```bash
-python src/main.py --mode vllm_cpu --model Qwen/Qwen2.5-0.5B-Instruct
+python src/main.py --mode vllm_cpu --model Qwen/Qwen3.5-0.8B-Instruct
 ```
 
 **Agent 调优模式：**
@@ -349,7 +352,7 @@ python src/main.py --mode tune --agent --max-iterations 10
 # WSL2 (CPU)
 model:
   backend: vllm_cpu
-  name: Qwen/Qwen2.5-0.5B-Instruct
+  name: Qwen/Qwen3.5-0.8B-Instruct
   tensor_parallel_size: 1
   dtype: float32
 
@@ -396,9 +399,10 @@ model:
 
 ### Phase 1 验证
 ```bash
-python -c "from vllm import LLM; \
-  llm = LLM(model='Qwen/Qwen2.5-0.5B-Instruct', dtype='float32'); \
-  print(llm.generate('Hello', max_tokens=10))"
+export OMP_NUM_THREADS=12 MKL_NUM_THREADS=12 TOKENIZERS_PARALLELISM=false
+python -c "from vllm import LLM, SamplingParams; \
+  llm = LLM(model='Qwen/Qwen3.5-0.8B', dtype='bfloat16', tensor_parallel_size=1, max_model_len=8192, max_num_seqs=8, gpu_memory_utilization=0.60, kv_cache_memory_bytes=536870912, enforce_eager=True); \
+  print(llm.generate(['Hello'], SamplingParams(max_tokens=10, temperature=0.0)))"
 ```
 
 ### Phase 2+3 验证
