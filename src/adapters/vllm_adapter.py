@@ -100,7 +100,7 @@ class VLLMAdapter(InferenceEngine):
                 # Use async output handling — vLLM generate is synchronous here
                 # The adapter pattern: submit via scheduler which manages async results
                 pass
-            except Exception:
+            except Exception as exc:
                 logger.warning("Error polling vLLM results: %s", exc)
 
     def submit(self, request: InferenceRequest) -> str:

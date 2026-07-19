@@ -147,7 +147,6 @@ Charts are presented in Section 4.
         )
         status_items = "\n".join([f"- {ok}" for ok in [p99_ok, qps_ok, hit_ok]])
 
-        status_lines = "\n".join([f"- {ok}" for ok in [p99_ok, qps_ok, hit_ok]])
         return f"""## Conclusion & Next Steps
 
 ### Status

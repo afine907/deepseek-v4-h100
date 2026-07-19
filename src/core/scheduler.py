@@ -128,8 +128,6 @@ class Scheduler(SchedulerPort):
         running_prefill = sum(
             1 for pr in self._running.values() if pr.current_chunk < len(pr.chunks) - 1
         )
-        running_decode = len(self._running) - running_prefill
-
         # Bug fix: decode_slots must account for running prefills (was using prefill_count=0)
         decode_slots = max(0, max_batch - running_prefill)
 
