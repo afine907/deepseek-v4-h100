@@ -60,7 +60,8 @@ class Scheduler(SchedulerPort):
             wait_time = time.time() - request.metadata.get("enqueue_time", time.time())
             remaining = request.max_tokens
             # SJF with aging: shorter jobs and older requests get higher priority
-            priority = remaining / (1.0 + wait_time * 0.1)
+            # Dividing by (1 - wait_time * factor): older wait → smaller divisor → higher priority
+            priority = remaining * max(0.01, 1.0 - wait_time * 0.1)
 
             chunks = self._split_into_chunks(request.prompt)
             pr = PrioritizedRequest(
