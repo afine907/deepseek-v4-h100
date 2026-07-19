@@ -1,0 +1,25 @@
+# Core inference system dependencies
+# Install with: pip install -r requirements.txt
+# For GPU/H100 support: pip install -r requirements-gpu.txt
+
+fastapi>=0.115.0
+uvicorn>=0.30.0
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+pyyaml>=6.0
+prometheus-client>=0.21.0
+prometheus-fastapi-instrumentator>=8.0.0
+
+# Optional: for real vLLM inference (CPU/GPU)
+# vllm>=0.6.0
+# torch>=2.5.0  # CPU version; use torch for CUDA on GPU nodes
+
+# LLM providers for tuning agent
+anthropic>=0.18.0
+openai>=1.12.0
+
+# Testing & linting
+pytest>=8.0.0
+pytest-asyncio>=0.25.0
+pytest-mock>=3.14.0
+ruff>=0.8.0

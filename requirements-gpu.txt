@@ -1,0 +1,5 @@
+# GPU/H100 requirements
+# Install with: pip install -r requirements-gpu.txt
+
+torch>=2.5.0
+# vllm>=0.6.0  # Uncomment when vLLM wheel is available for your CUDA version
