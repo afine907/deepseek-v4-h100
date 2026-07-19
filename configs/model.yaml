@@ -1,19 +1,24 @@
-# 模型配置
-# 参考: docs/original-requirements.md
-
+# Model / inference engine configuration
+#
+# WSL2 (CPU mode) — uncomment to use:
 model:
-  name: "deepseek-v4-flash"
+  backend: vllm_cpu
+  name: Qwen/Qwen3.5-0.8B
+  tensor_parallel_size: 1
+  dtype: bfloat16
+  max_model_len: 512
+  max_num_seqs: 4
+  gpu_memory_utilization: 0.50
+  kv_cache_memory_bytes: 268435456
 
-  # 张量并行
-  tensor_parallel_size: 8  # 8×H100 NVLink 全互联
-
-  # 量化精度
-  quantization: "FP8"     # 8位浮点，精度/显存平衡
-
-  # 显存
-  gpu_memory_utilization: 0.90
-  max_seq_len: 32768      # DeepSeek-V4-Flash max_seq_len（待确认）
-
-  # MoE 配置
-  moe:
-    expert_load_balancing: true  # vLLM MoE 默认开启（需确认）
+# H100 (GPU mode) — uncomment to use instead:
+# model:
+#   backend: vllm
+#   name: deepseek-ai/DeepSeek-V4-Flash
+#   tensor_parallel_size: 8
+#   dtype: float16
+#   quantization: fp8
+#   max_model_len: 8192
+#   max_num_seqs: 32
+#   gpu_memory_utilization: 0.90
+#   kv_cache_memory_bytes: 0

@@ -1,0 +1,8 @@
+# Agent / LLM tuning configuration
+
+agent:
+  llm_provider: claude  # claude | openai | mock
+  api_key_env: ANTHROPIC_API_KEY
+  model_name: claude-sonnet-4-20250514
+  max_iterations: 10
+  convergence_threshold: 0.05  # 5% improvement threshold
