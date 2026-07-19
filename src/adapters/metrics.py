@@ -1,6 +1,6 @@
 """Prometheus metrics collector (aligns with docs/brainstorming/04-api-contracts.md §3)."""
 
-from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 
 
 class PrometheusMetrics:

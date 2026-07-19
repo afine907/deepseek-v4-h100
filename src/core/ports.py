@@ -1,9 +1,8 @@
 """Port interfaces (hexagonal architecture inbound ports)."""
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
-from .models import InferenceRequest, InferenceResponse, EngineStatus, QueueStatus
+from .models import EngineStatus, InferenceRequest, InferenceResponse, QueueStatus
 
 
 class InferenceEngine(ABC):
@@ -15,7 +14,7 @@ class InferenceEngine(ABC):
         ...
 
     @abstractmethod
-    def get_result(self, request_id: str, timeout: float = 30.0) -> Optional[InferenceResponse]:
+    def get_result(self, request_id: str, timeout: float = 30.0) -> InferenceResponse | None:
         """Get inference result (non-blocking). Returns None if not yet complete."""
         ...
 

@@ -31,18 +31,21 @@ class RESTTuner(TunerInterface):
 
     def update_config(self, **kwargs: Any) -> dict:
         import requests
+
         resp = requests.post(f"{self._base_url}/config", json=kwargs, timeout=10)
         resp.raise_for_status()
         return resp.json()
 
     def get_status(self) -> dict:
         import requests
+
         resp = requests.get(f"{self._base_url}/status", timeout=10)
         resp.raise_for_status()
         return resp.json()
 
     def get_metrics(self) -> dict:
         import requests
+
         resp = requests.get(f"{self._base_url}/metrics", timeout=10)
         resp.raise_for_status()
         return resp.json()

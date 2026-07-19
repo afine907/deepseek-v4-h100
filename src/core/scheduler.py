@@ -4,15 +4,13 @@ import heapq
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 from .models import (
+    BatchConfig,
+    ChunkedPrefillConfig,
     InferenceRequest,
     InferenceResponse,
     QueueStatus,
-    ChunkedPrefillConfig,
-    BatchConfig,
-    FinishReason,
 )
 from .ports import InferenceEngine, KVCacheManagerPort, MetricsCollectorPort, SchedulerPort
 
@@ -20,6 +18,7 @@ from .ports import InferenceEngine, KVCacheManagerPort, MetricsCollectorPort, Sc
 @dataclass(order=True)
 class PrioritizedRequest:
     """A request in the scheduler queue with scheduling metadata."""
+
     priority: float
     request: InferenceRequest = field(compare=False)
     enqueue_time: float = field(compare=False, default_factory=time.time)
@@ -78,7 +77,7 @@ class Scheduler(SchedulerPort):
         chunk_size = self._chunk_config.chunk_size
         chunks = []
         for i in range(0, len(prompt), chunk_size):
-            chunks.append(prompt[i:i + chunk_size])
+            chunks.append(prompt[i : i + chunk_size])
         return chunks if chunks else [prompt]
 
     def step(self) -> list[InferenceResponse]:

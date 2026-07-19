@@ -10,6 +10,7 @@ from ..core.models import InferenceRequest
 @dataclass
 class BenchmarkResult:
     """Results from a benchmark run."""
+
     p50_ms: float
     p90_ms: float
     p99_ms: float
@@ -43,21 +44,18 @@ class BenchmarkRunner:
 
     def run(self) -> BenchmarkResult:
         """Run benchmark and return results."""
-        latencies = []
         start = time.time()
 
         for i in range(self._num_requests):
             tokens = (
-                self._short_tokens
-                if random.random() < self._short_ratio
-                else self._long_tokens
+                self._short_tokens if random.random() < self._short_ratio else self._long_tokens
             )
             request = InferenceRequest(
                 request_id=f"bench-{i}",
                 prompt="x = 1" * (tokens // 4),
                 max_tokens=100,
             )
-            rid = self._engine.submit(request)
+            self._engine.submit(request)
             time.sleep(0.01)
 
         duration = time.time() - start

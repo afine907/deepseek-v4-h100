@@ -1,17 +1,15 @@
 """Mock adapters for testing and CI (no vLLM dependency)."""
 
-import time
 import random
 import threading
+import time
 from collections import OrderedDict
-from typing import Optional
 
 from ..core.models import (
+    EngineStatus,
+    FinishReason,
     InferenceRequest,
     InferenceResponse,
-    EngineStatus,
-    QueueStatus,
-    FinishReason,
 )
 from ..core.ports import InferenceEngine, KVCacheManagerPort, MetricsCollectorPort
 
@@ -39,7 +37,7 @@ class MockInferenceEngine(InferenceEngine):
             self._requests[rid] = (request, time.time())
         return rid
 
-    def get_result(self, request_id: str, timeout: float = 30.0) -> Optional[InferenceResponse]:
+    def get_result(self, request_id: str, timeout: float = 30.0) -> InferenceResponse | None:
         deadline = time.time() + timeout
         while True:
             with self._lock:
@@ -104,10 +102,7 @@ class MockKVCacheManager(KVCacheManagerPort):
         if self._current_usage / max(self._capacity, 1) < self._high:
             return 0
         evicted = 0
-        while (
-            self._current_usage > self._capacity * self._low
-            and len(self._blocks) > 0
-        ):
+        while self._current_usage > self._capacity * self._low and len(self._blocks) > 0:
             oldest = next(iter(self._blocks))
             del self._blocks[oldest]
             self._current_usage -= 1

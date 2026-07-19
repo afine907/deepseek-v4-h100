@@ -1,7 +1,6 @@
 """Data models for DeepSeek-V4-Flash inference system."""
 
 from dataclasses import dataclass, field
-from typing import Optional
 from enum import Enum
 
 

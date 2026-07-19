@@ -3,12 +3,10 @@
 import json
 import logging
 import os
-import time
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
-from .benchmark_runner import BenchmarkRunner, MockBenchmarkRunner
-from .prompts import ANALYSIS_PROMPT, DECISION_PROMPT
+from .benchmark_runner import BenchmarkRunner
+from .prompts import ANALYSIS_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +14,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TuningHistory:
     """Record of one tuning round."""
+
     round_num: int
     config: dict
     metrics_before: dict
@@ -27,6 +26,7 @@ class TuningHistory:
 @dataclass
 class TuningResult:
     """Result of a full tuning run."""
+
     converged: bool
     final_config: dict
     total_rounds: int
@@ -51,7 +51,7 @@ class TunerAgent:
         max_iterations: int = 10,
         convergence_threshold: float = 0.05,
         llm_provider: str = "mock",
-        llm_api_key: Optional[str] = None,
+        llm_api_key: str | None = None,
         llm_model: str = "claude-sonnet-4-20250514",
     ):
         self._tuner = tuner_interface
@@ -61,9 +61,7 @@ class TunerAgent:
         self._threshold = convergence_threshold
         self._llm_provider = llm_provider
         self._llm_api_key = (
-            llm_api_key
-            or os.getenv("ANTHROPIC_API_KEY")
-            or os.getenv("OPENAI_API_KEY")
+            llm_api_key or os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY")
         )
         self._llm_model = llm_model
         self._history: list[TuningHistory] = []
@@ -79,18 +77,15 @@ class TunerAgent:
         raise ValueError(f"Unknown LLM provider: {self._llm_provider}")
 
     def _mock_llm_response(self, prompt: str) -> dict:
-        """Mock LLM response for testing."""
-        import random
+        """Deterministic mock LLM response for testing."""
         return {
-            "changes": {
-                "batch_size": random.choice([16, 24, 32]),
-                "kv_cache_high_watermark": round(random.uniform(0.88, 0.92), 2),
-            },
-            "reasoning": "Mock: randomly adjusted batch_size and watermark",
+            "changes": {"batch_size": 24, "kv_cache_high_watermark": 0.90},
+            "reasoning": "Mock: deterministic response for testing",
         }
 
     def _call_claude(self, prompt: str) -> dict:
         """Call Anthropic Claude API."""
+
         import anthropic
 
         client = anthropic.Anthropic(api_key=self._llm_api_key)
@@ -100,9 +95,7 @@ class TunerAgent:
             messages=[{"role": "user", "content": prompt}],
         )
         text = response.content[0].text
-        start = text.find("{")
-        end = text.rfind("}") + 1
-        return json.loads(text[start:end])
+        return self._parse_llm_json(text)
 
     def _call_openai(self, prompt: str) -> dict:
         """Call OpenAI Chat API."""
@@ -115,9 +108,20 @@ class TunerAgent:
             max_tokens=1024,
         )
         text = response.choices[0].message.content
-        start = text.find("{")
-        end = text.rfind("}") + 1
-        return json.loads(text[start:end])
+        return self._parse_llm_json(text)
+
+    def _parse_llm_json(self, text: str) -> dict:
+        """Parse JSON from LLM response with fallback to empty changes."""
+        import re
+
+        try:
+            match = re.search(r"\{[\s\S]*\}", text)
+            if match:
+                return json.loads(match.group())
+            return {"changes": {}, "reasoning": "No JSON found in LLM response"}
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse LLM JSON response: {e}")
+            return {"changes": {}, "reasoning": f"JSON parse error: {e}"}
 
     def _get_metrics_from_runner(self) -> dict:
         """Run benchmark and collect metrics."""
@@ -135,9 +139,7 @@ class TunerAgent:
         """Build history string for last 3 rounds."""
         lines = []
         for h in self._history[-3:]:
-            lines.append(
-                f"Round {h.round_num}: changed {h.changes} — {h.reasoning}"
-            )
+            lines.append(f"Round {h.round_num}: changed {h.changes} — {h.reasoning}")
         return "\n".join(lines) if lines else "(first round)"
 
     def tune(self) -> TuningResult:
@@ -188,14 +190,16 @@ class TunerAgent:
             logger.info(f"Metrics after: {metrics_after}")
 
             # 5. Record history
-            self._history.append(TuningHistory(
-                round_num=iteration + 1,
-                config=old_config,
-                metrics_before=metrics_before,
-                metrics_after=metrics_after,
-                changes=changes,
-                reasoning=llm_response.get("reasoning", ""),
-            ))
+            self._history.append(
+                TuningHistory(
+                    round_num=iteration + 1,
+                    config=old_config,
+                    metrics_before=metrics_before,
+                    metrics_after=metrics_after,
+                    changes=changes,
+                    reasoning=llm_response.get("reasoning", ""),
+                )
+            )
 
             # 6. Check convergence — P99 latency improvement
             p99_before = metrics_before["p99_ms"]
@@ -206,7 +210,9 @@ class TunerAgent:
                 if improvement < self._threshold and len(self._history) >= 3:
                     recent = self._history[-3:]
                     if all(
-                        (h.metrics_before["p99_ms"] - h.metrics_after["p99_ms"]) / max(h.metrics_before["p99_ms"], 1) < self._threshold
+                        (h.metrics_before["p99_ms"] - h.metrics_after["p99_ms"])
+                        / max(h.metrics_before["p99_ms"], 1)
+                        < self._threshold
                         for h in recent
                     ):
                         logger.info("Converged: 3 consecutive rounds below improvement threshold")

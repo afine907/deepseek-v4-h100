@@ -1,9 +1,8 @@
 """FastAPI control server for DeepSeek Tuner (REST API)."""
 
 import threading
-from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel
 
 app = FastAPI(title="DeepSeek Tuner Control API")
@@ -14,11 +13,12 @@ _config_lock = threading.Lock()
 
 class UpdateConfigRequest(BaseModel):
     """Request to update scheduler / engine configuration."""
-    batch_size: Optional[int] = None
-    chunk_size: Optional[int] = None
-    kv_cache_high_watermark: Optional[float] = None
-    kv_cache_low_watermark: Optional[float] = None
-    prefill_ratio: Optional[float] = None
+
+    batch_size: int | None = None
+    chunk_size: int | None = None
+    kv_cache_high_watermark: float | None = None
+    kv_cache_low_watermark: float | None = None
+    prefill_ratio: float | None = None
 
 
 @app.get("/status")
@@ -52,6 +52,7 @@ def update_config(req: UpdateConfigRequest) -> dict:
 def get_metrics() -> bytes:
     """Return Prometheus metrics."""
     from ..adapters.metrics import PrometheusMetrics
+
     return PrometheusMetrics.get_metrics()
 
 

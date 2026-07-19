@@ -1,10 +1,10 @@
 """Configuration loader with environment variable overrides."""
 
 import os
-import yaml
-from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Optional
+from pathlib import Path
+
+import yaml
 
 CONFIG_DIR = Path(__file__).parent.parent.parent / "configs"
 
@@ -19,7 +19,7 @@ class ModelConfig:
     max_num_seqs: int = 4
     gpu_memory_utilization: float = 0.50
     kv_cache_memory_bytes: int = 268435456
-    quantization: Optional[str] = None
+    quantization: str | None = None
 
 
 @dataclass
@@ -109,7 +109,7 @@ class Settings:
         return s
 
 
-_settings: Optional[Settings] = None
+_settings: Settings | None = None
 
 
 def get_settings() -> Settings:

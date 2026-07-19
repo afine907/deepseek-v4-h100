@@ -3,9 +3,8 @@
 import os
 import threading
 import time
-from typing import Optional
 
-from ..core.models import InferenceRequest, InferenceResponse, EngineStatus, FinishReason
+from ..core.models import EngineStatus, FinishReason, InferenceRequest, InferenceResponse
 from ..core.ports import InferenceEngine
 
 
@@ -28,7 +27,7 @@ class VLLMAdapter(InferenceEngine):
         model_name: str = "Qwen/Qwen3.5-0.8B",
         dtype: str = "bfloat16",
         tensor_parallel_size: int = 1,
-        quantization: Optional[str] = None,
+        quantization: str | None = None,
         max_model_len: int = 512,
         gpu_memory_utilization: float = 0.50,
         max_batch_size: int = 4,
@@ -47,7 +46,7 @@ class VLLMAdapter(InferenceEngine):
         self._pending: dict[str, dict] = {}
         self._completed: dict[str, InferenceResponse] = {}
         self._lock = threading.Lock()
-        self._poller_thread: Optional[threading.Thread] = None
+        self._poller_thread: threading.Thread | None = None
         self._stop_poller = threading.Event()
 
     def _ensure_loaded(self) -> None:
@@ -59,7 +58,7 @@ class VLLMAdapter(InferenceEngine):
         if self._device == "cpu":
             os.environ.setdefault("VLLM_ENABLE_V1_MULTIPROCESSING", "0")
 
-        from vllm import LLM, SamplingParams
+        from vllm import LLM
 
         kwargs = {
             "model": self._model_name,
@@ -123,9 +122,17 @@ class VLLMAdapter(InferenceEngine):
             outputs = self._llm.generate([request.prompt], sp)
             output = outputs[0]
             generated_text = output.outputs[0].text
-            finish = FinishReason.STOP if output.outputs[0].finish_reason == "stop" else FinishReason.LENGTH
+            finish = (
+                FinishReason.STOP
+                if output.outputs[0].finish_reason == "stop"
+                else FinishReason.LENGTH
+            )
             latency_ms = (time.time() - self._pending[rid]["submitted_at"]) * 1000
-            tokens = len(output.outputs[0].token_ids) if hasattr(output.outputs[0], "token_ids") else len(generated_text)
+            tokens = (
+                len(output.outputs[0].token_ids)
+                if hasattr(output.outputs[0], "token_ids")
+                else len(generated_text)
+            )
 
             response = InferenceResponse(
                 request_id=rid,
@@ -137,14 +144,14 @@ class VLLMAdapter(InferenceEngine):
             with self._lock:
                 self._completed[rid] = response
                 del self._pending[rid]
-        except Exception as e:
+        except Exception:
             with self._lock:
                 if rid in self._pending:
                     del self._pending[rid]
 
         return rid
 
-    def get_result(self, request_id: str, timeout: float = 30.0) -> Optional[InferenceResponse]:
+    def get_result(self, request_id: str, timeout: float = 30.0) -> InferenceResponse | None:
         with self._lock:
             if request_id in self._completed:
                 return self._completed.pop(request_id)

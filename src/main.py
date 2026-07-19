@@ -2,13 +2,11 @@
 
 import argparse
 import logging
-import sys
-import threading
 import time
 
-from src.core.models import ChunkedPrefillConfig, BatchConfig, KVCacheConfig
-from src.core.scheduler import Scheduler
 from src.config.settings import get_settings
+from src.core.models import BatchConfig, ChunkedPrefillConfig, KVCacheConfig
+from src.core.scheduler import Scheduler
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -16,7 +14,11 @@ logger = logging.getLogger(__name__)
 
 def create_mock_mode() -> Scheduler:
     """Create a scheduler in mock mode (no vLLM dependency)."""
-    from src.adapters.mock_adapter import MockInferenceEngine, MockKVCacheManager, MockMetricsCollector
+    from src.adapters.mock_adapter import (
+        MockInferenceEngine,
+        MockKVCacheManager,
+        MockMetricsCollector,
+    )
 
     settings = get_settings()
 
@@ -76,6 +78,7 @@ def create_vllm_mode() -> Scheduler:
     kv_cache = KVCacheManager(config=kv_cache_cfg)
 
     from src.adapters.mock_adapter import MockMetricsCollector
+
     metrics = MockMetricsCollector()
 
     chunk_config = ChunkedPrefillConfig(
@@ -122,12 +125,15 @@ def run_mock_demo(scheduler: Scheduler) -> None:
         time.sleep(0.2)
 
     status = scheduler.get_queue_status()
-    logger.info(f"Queue status: waiting={status.waiting_requests}, running={status.running_requests}")
+    logger.info(
+        f"Queue status: waiting={status.waiting_requests}, running={status.running_requests}"
+    )
 
 
 def run_server(scheduler: Scheduler, host: str = "0.0.0.0", port: int = 8000) -> None:
     """Run the FastAPI control server."""
     import uvicorn
+
     from src.control.tuner_server import app
 
     logger.info(f"Starting control server on {host}:{port}")
@@ -136,10 +142,10 @@ def run_server(scheduler: Scheduler, host: str = "0.0.0.0", port: int = 8000) ->
 
 def main_tune_mode(args) -> None:
     """Run the tuning agent in mock or real mode."""
+    from src.agent.benchmark_runner import BenchmarkRunner, MockBenchmarkRunner
     from src.agent.tuner_agent import TunerAgent
-    from src.agent.benchmark_runner import MockBenchmarkRunner, BenchmarkRunner
-    from src.control.tuner_interface import RESTTuner
     from src.config.settings import get_settings
+    from src.control.tuner_interface import RESTTuner
 
     settings = get_settings()
 
@@ -187,7 +193,11 @@ def main() -> None:
     )
     parser.add_argument("--host", default="0.0.0.0", help="Server host")
     parser.add_argument("--port", type=int, default=8000, help="Server port")
-    parser.add_argument("--backend", default="mock", help="mock: MockBenchmarkRunner; real: BenchmarkRunner with engine")
+    parser.add_argument(
+        "--backend",
+        default="mock",
+        help="mock: MockBenchmarkRunner; real: BenchmarkRunner with engine",
+    )
     parser.add_argument("--tuner-url", default="http://localhost:8000", help="Tuner server URL")
     parser.add_argument(
         "--agent-provider",
