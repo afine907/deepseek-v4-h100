@@ -444,3 +444,54 @@ openai>=1.0.0
 pytest>=8.0.0
 pytest-cov>=4.0.0
 ```
+
+---
+
+## 七、H100 生产环境验证
+
+### 构建并启动
+```bash
+# 构建镜像
+docker build -t deepseek-v4-h100 .
+
+# 一键启动
+bash launch_h100.sh \
+  --model deepseek-ai/DeepSeek-V4-Flash \
+  --tensor-parallel-size 8 \
+  --gpu-memory-utilization 0.90 \
+  --port 8000
+
+# 或切换配置文件后启动
+cp configs/model.h100.yaml configs/model.yaml
+docker run --gpus all --shm-size=64g -p 8000:8000 deepseek-v4-h100
+```
+
+### H100 生产环境验证目标
+
+| 指标 | 目标 | 测量方法 |
+|------|------|---------|
+| P99 延迟 | < 5.0s | SWE-bench 基准测试 |
+| QPS | > 100 | 负载测试工具（wrk/locust） |
+| GPU 利用率 | > 80% | `nvidia-smi` 或 Prometheus |
+| KV Cache 命中率 | > 70% | `/metrics` 端点 |
+| SWE-bench 完成率 | > 99% | 基准测试脚本 |
+
+### 验证命令
+```bash
+# 1. 检查 GPU 利用率
+nvidia-smi
+
+# 2. 检查 metrics 端点
+curl http://localhost:8000/metrics
+
+# 3. 检查服务状态
+curl http://localhost:8000/status
+
+# 4. 发送推理请求测试
+curl -X POST http://localhost:8000/v1/completions \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "def hello():", "max_tokens": 50}'
+
+# 5. 运行完整 SWE-bench 评测
+python tests/benchmark_swe.py --output results.json
+```

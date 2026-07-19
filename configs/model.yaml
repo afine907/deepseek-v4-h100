@@ -1,6 +1,7 @@
-# Model / inference engine configuration
-#
-# WSL2 (CPU mode) — uncomment to use:
+# ============================================================
+# WSL2 (CPU 开发模式) — 默认配置
+# 使用 Qwen3.5-0.8B，验证本地调度逻辑
+# ============================================================
 model:
   backend: vllm_cpu
   name: Qwen/Qwen3.5-0.8B
@@ -11,7 +12,10 @@ model:
   gpu_memory_utilization: 0.50
   kv_cache_memory_bytes: 268435456
 
-# H100 (GPU mode) — uncomment to use instead:
+# ============================================================
+# H100 (GPU 生产模式) — 取消下面注释切换
+# 使用 DeepSeek-V4-Flash，8×NVLink
+# ============================================================
 # model:
 #   backend: vllm
 #   name: deepseek-ai/DeepSeek-V4-Flash
@@ -21,4 +25,3 @@ model:
 #   max_model_len: 8192
 #   max_num_seqs: 32
 #   gpu_memory_utilization: 0.90
-#   kv_cache_memory_bytes: 0
