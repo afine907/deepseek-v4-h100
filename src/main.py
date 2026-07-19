@@ -133,6 +133,7 @@ def run_mock_demo(scheduler: Scheduler) -> None:
 def run_server(scheduler: Scheduler, host: str = "0.0.0.0", port: int = 8000) -> None:
     """Run the FastAPI control server."""
     import uvicorn
+
     from src.control.tuner_server import app, set_scheduler
 
     set_scheduler(scheduler)

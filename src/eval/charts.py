@@ -1,4 +1,5 @@
 """Chart generation using dataviz skill principles."""
+
 import logging
 from pathlib import Path
 
@@ -29,9 +30,12 @@ class ChartGenerator:
     def charts_dir(self) -> Path:
         return self._charts_dir
 
-    def generate_latency_distribution(self, latencies: list[float], output_name: str = "latency_dist.png") -> Path:
+    def generate_latency_distribution(
+        self, latencies: list[float], output_name: str = "latency_dist.png"
+    ) -> Path:
         """Bar chart: latency bucket distribution (<100 / 100-500 / 500-1000 / >1000ms)."""
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
@@ -79,9 +83,12 @@ class ChartGenerator:
         logger.info(f"Latency distribution chart saved: {path}")
         return path
 
-    def generate_qps_comparison(self, qps_by_batch: dict[str, float], output_name: str = "qps_comparison.png") -> Path:
+    def generate_qps_comparison(
+        self, qps_by_batch: dict[str, float], output_name: str = "qps_comparison.png"
+    ) -> Path:
         """Grouped bar chart: QPS by batch size (baseline vs optimized)."""
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
@@ -92,7 +99,7 @@ class ChartGenerator:
         ax.set_facecolor("#fcfcfb")
         fig.patch.set_facecolor("#fcfcfb")
 
-        bars = ax.bar(range(len(batch_sizes)), values, color=CAT_PALETTE[0], width=0.5, edgecolor="none")
+        ax.bar(range(len(batch_sizes)), values, color=CAT_PALETTE[0], width=0.5, edgecolor="none")
         ax.set_xticks(range(len(batch_sizes)))
         ax.set_xticklabels(batch_sizes)
         ax.spines["top"].set_visible(False)
@@ -109,9 +116,15 @@ class ChartGenerator:
 
         # Selective direct labels
         max_idx = values.index(max(values))
-        ax.annotate(f"{values[max_idx]:.1f}", xy=(max_idx, values[max_idx]),
-                    xytext=(0, 5), textcoords="offset points",
-                    ha="center", color="#52514e", fontsize=9)
+        ax.annotate(
+            f"{values[max_idx]:.1f}",
+            xy=(max_idx, values[max_idx]),
+            xytext=(0, 5),
+            textcoords="offset points",
+            ha="center",
+            color="#52514e",
+            fontsize=9,
+        )
 
         plt.tight_layout()
         path = self._charts_dir / output_name
@@ -120,9 +133,12 @@ class ChartGenerator:
         logger.info(f"QPS comparison chart saved: {path}")
         return path
 
-    def generate_cache_hit_rate(self, hit_rate: float, output_name: str = "cache_hit_rate.png") -> Path:
+    def generate_cache_hit_rate(
+        self, hit_rate: float, output_name: str = "cache_hit_rate.png"
+    ) -> Path:
         """Stat tile: cache hit rate with target line at 0.70."""
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
@@ -142,8 +158,16 @@ class ChartGenerator:
         ax.axvline(x=0.70, color=STATUS_GOOD, linewidth=2, linestyle="--", label="Target 70%")
 
         # Value text
-        ax.text(hit_rate - 0.05, 0.5, f"{hit_rate:.1%}", va="center", ha="right",
-                color="white", fontsize=18, fontweight="bold")
+        ax.text(
+            hit_rate - 0.05,
+            0.5,
+            f"{hit_rate:.1%}",
+            va="center",
+            ha="right",
+            color="white",
+            fontsize=18,
+            fontweight="bold",
+        )
 
         ax.set_title("KV Cache Hit Rate", color="#0b0b0b", fontsize=14, fontweight="bold")
         ax.axis("off")
@@ -156,10 +180,12 @@ class ChartGenerator:
         logger.info(f"Cache hit rate chart saved: {path}")
         return path
 
-    def generate_convergence_curve(self, rounds: list[int], p99_latencies: list[float],
-                                  output_name: str = "convergence.png") -> Path:
+    def generate_convergence_curve(
+        self, rounds: list[int], p99_latencies: list[float], output_name: str = "convergence.png"
+    ) -> Path:
         """Line chart: P99 latency convergence over tuning rounds."""
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
@@ -183,7 +209,14 @@ class ChartGenerator:
         ax.set_title("P99 Latency Convergence", color="#0b0b0b", fontsize=14, fontweight="bold")
 
         # Target line at 5000ms
-        ax.axhline(y=5000, color="#e34948", linewidth=1.5, linestyle="--", alpha=0.7, label="Target <5000ms")
+        ax.axhline(
+            y=5000,
+            color="#e34948",
+            linewidth=1.5,
+            linestyle="--",
+            alpha=0.7,
+            label="Target <5000ms",
+        )
         ax.legend()
 
         plt.tight_layout()
@@ -193,10 +226,12 @@ class ChartGenerator:
         logger.info(f"Convergence curve saved: {path}")
         return path
 
-    def generate_sensitivity_heatmap(self, data: dict[tuple[int, int], float],
-                                    output_name: str = "sensitivity_heatmap.png") -> Path:
+    def generate_sensitivity_heatmap(
+        self, data: dict[tuple[int, int], float], output_name: str = "sensitivity_heatmap.png"
+    ) -> Path:
         """Heatmap: batch_size × chunk_size → P99 latency."""
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
         import numpy as np
@@ -221,7 +256,12 @@ class ChartGenerator:
         ax.set_yticklabels(chunk_sizes)
         ax.set_xlabel("Batch size", color="#52514e")
         ax.set_ylabel("Chunk size", color="#52514e")
-        ax.set_title("Parameter Sensitivity: P99 Latency (ms)", color="#0b0b0b", fontsize=14, fontweight="bold")
+        ax.set_title(
+            "Parameter Sensitivity: P99 Latency (ms)",
+            color="#0b0b0b",
+            fontsize=14,
+            fontweight="bold",
+        )
 
         # Colorbar
         cbar = fig.colorbar(im, ax=ax, shrink=0.8)
@@ -233,8 +273,15 @@ class ChartGenerator:
             for j in range(len(batch_sizes)):
                 val = z[i, j]
                 if val > 0:
-                    ax.text(j, i, f"{val:.0f}", ha="center", va="center",
-                            color="white" if val > z.mean() else "#0b0b0b", fontsize=8)
+                    ax.text(
+                        j,
+                        i,
+                        f"{val:.0f}",
+                        ha="center",
+                        va="center",
+                        color="white" if val > z.mean() else "#0b0b0b",
+                        fontsize=8,
+                    )
 
         plt.tight_layout()
         path = self._charts_dir / output_name
@@ -243,12 +290,20 @@ class ChartGenerator:
         logger.info(f"Sensitivity heatmap saved: {path}")
         return path
 
-    def generate_all(self, latency_data: dict, qps_data: dict, hit_rate: float,
-                     convergence_data: tuple, sensitivity_data: dict) -> dict[str, Path]:
+    def generate_all(
+        self,
+        latency_data: dict,
+        qps_data: dict,
+        hit_rate: float,
+        convergence_data: tuple,
+        sensitivity_data: dict,
+    ) -> dict[str, Path]:
         """Generate all charts. Returns dict of chart_name -> file_path."""
         paths = {}
         if latency_data:
-            paths["latency_dist"] = self.generate_latency_distribution(latency_data.get("latencies", []))
+            paths["latency_dist"] = self.generate_latency_distribution(
+                latency_data.get("latencies", [])
+            )
         if qps_data:
             paths["qps_comparison"] = self.generate_qps_comparison(qps_data)
         if hit_rate is not None:

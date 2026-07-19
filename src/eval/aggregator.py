@@ -1,10 +1,10 @@
 """Metrics aggregation across multiple benchmark runs."""
+
 import csv
 import statistics
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-
 
 METRIC_NAMES = [
     "p50_ms",
@@ -19,6 +19,7 @@ METRIC_NAMES = [
 @dataclass
 class AggregatedResult:
     """Aggregated metrics across multiple runs."""
+
     metric: str
     mean: float
     std: float
@@ -40,6 +41,7 @@ class AggregatedResult:
 @dataclass
 class AggregatedMetrics:
     """Full aggregation result."""
+
     results: list[AggregatedResult] = field(default_factory=list)
     runs: int = 0
 
@@ -97,14 +99,16 @@ class MetricsAggregator:
                 continue
             mean_val = statistics.mean(values)
             std_val = statistics.stdev(values) if len(values) > 1 else 0.0
-            aggregated.append(AggregatedResult(
-                metric=name,
-                mean=mean_val,
-                std=std_val,
-                min_val=min(values),
-                max_val=max(values),
-                count=len(values),
-            ))
+            aggregated.append(
+                AggregatedResult(
+                    metric=name,
+                    mean=mean_val,
+                    std=std_val,
+                    min_val=min(values),
+                    max_val=max(values),
+                    count=len(values),
+                )
+            )
 
         return AggregatedMetrics(results=aggregated, runs=len(self._runs))
 

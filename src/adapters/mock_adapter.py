@@ -42,8 +42,9 @@ class MockInferenceEngine(InferenceEngine):
         while not self._stop_event.is_set():
             with self._lock:
                 to_complete = [
-                    rid for rid, (_, start) in self._requests.items() if rid not in self._completed
-                    and (time.time() - start) >= self._mean
+                    rid
+                    for rid, (_, start) in self._requests.items()
+                    if rid not in self._completed and (time.time() - start) >= self._mean
                 ]
                 for rid in to_complete:
                     request, _ = self._requests[rid]

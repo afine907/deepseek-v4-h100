@@ -1,8 +1,10 @@
 """FastAPI control server for DeepSeek Tuner (REST API)."""
 
+from __future__ import annotations
+
 import logging
 import threading
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse
@@ -10,19 +12,22 @@ from pydantic import BaseModel
 
 from ..adapters.metrics import PrometheusMetrics
 
+if TYPE_CHECKING:
+    from ..core.scheduler import Scheduler
+
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="DeepSeek Tuner Control API")
 
 # Global scheduler reference (set via dependency injection)
-_scheduler: Optional["Scheduler"] = None
+_scheduler: Scheduler | None = None
 _scheduler_lock = threading.Lock()
 
 _config: dict = {}
 _config_lock = threading.Lock()
 
 
-def set_scheduler(scheduler: "Scheduler") -> None:
+def set_scheduler(scheduler: Scheduler) -> None:
     """Dependency injection for the scheduler — call once at startup."""
     global _scheduler
     with _scheduler_lock:
@@ -30,7 +35,7 @@ def set_scheduler(scheduler: "Scheduler") -> None:
     logger.info("Scheduler wired to tuner server")
 
 
-def get_scheduler() -> "Scheduler":
+def get_scheduler() -> Scheduler:
     """Get the current scheduler instance."""
     if _scheduler is None:
         raise HTTPException(status_code=503, detail="Scheduler not initialized")
@@ -39,11 +44,12 @@ def get_scheduler() -> "Scheduler":
 
 class UpdateConfigRequest(BaseModel):
     """Request to update scheduler / engine configuration."""
-    batch_size: Optional[int] = None
-    chunk_size: Optional[int] = None
-    kv_cache_high_watermark: Optional[float] = None
-    kv_cache_low_watermark: Optional[float] = None
-    prefill_ratio: Optional[float] = None
+
+    batch_size: int | None = None
+    chunk_size: int | None = None
+    kv_cache_high_watermark: float | None = None
+    kv_cache_low_watermark: float | None = None
+    prefill_ratio: float | None = None
 
 
 @app.get("/health")

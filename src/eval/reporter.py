@@ -1,7 +1,7 @@
 """Markdown report generator for benchmark results."""
+
 import logging
 from pathlib import Path
-from typing import Optional
 
 from .aggregator import AggregatedMetrics
 
@@ -20,7 +20,7 @@ class ReportGenerator:
     5. Conclusion & Next Steps
     """
 
-    def __init__(self, template: Optional[str] = None):
+    def __init__(self, template: str | None = None):
         self._template = template or self._DEFAULT_TEMPLATE
 
     def generate(
@@ -28,8 +28,8 @@ class ReportGenerator:
         aggregated: AggregatedMetrics,
         chart_paths: dict[str, Path],
         output_path: Path,
-        config: Optional[dict] = None,
-        baseline: Optional[dict] = None,
+        config: dict | None = None,
+        baseline: dict | None = None,
     ) -> None:
         """Generate Markdown report and write to output_path."""
         config = config or {}
@@ -83,9 +83,11 @@ Charts are presented in Section 4.
         return "\n".join(lines)
 
     def _build_metrics_table(self, aggregated: AggregatedMetrics, baseline: dict) -> str:
-        lines = ["## Metrics\n",
-                 "| Metric | Mean | Std | Min | Max | Delta vs Baseline |",
-                 "|--------|------|-----|-----|-----|-------------------|"]
+        lines = [
+            "## Metrics\n",
+            "| Metric | Mean | Std | Min | Max | Delta vs Baseline |",
+            "|--------|------|-----|-----|-----|-------------------|",
+        ]
 
         metric_labels = {
             "p50_ms": "P50 Latency (ms)",
@@ -103,7 +105,9 @@ Charts are presented in Section 4.
             if base_val is not None and base_val != 0:
                 delta_pct = ((r.mean - base_val) / base_val) * 100
                 delta_str = f"{delta_pct:+.1f}%"
-            lines.append(f"| {label} | {r.mean:.2f} | {r.std:.2f} | {r.min_val:.2f} | {r.max_val:.2f} | {delta_str} |")
+            lines.append(
+                f"| {label} | {r.mean:.2f} | {r.std:.2f} | {r.min_val:.2f} | {r.max_val:.2f} | {delta_str} |"
+            )
 
         return "\n".join(lines)
 
@@ -136,12 +140,17 @@ Charts are presented in Section 4.
 
         p99_ok = "✅ P99 is within target (<5000ms)" if p99 < 5000 else "❌ P99 exceeds target"
         qps_ok = "✅ QPS meets target (>100)" if qps > 100 else "⚠️ QPS below target"
-        hit_ok = "✅ Cache hit rate meets target (>70%)" if hit > 0.7 else "⚠️ Cache hit rate below target"
+        hit_ok = (
+            "✅ Cache hit rate meets target (>70%)"
+            if hit > 0.7
+            else "⚠️ Cache hit rate below target"
+        )
+        status_items = "\n".join([f"- {ok}" for ok in [p99_ok, qps_ok, hit_ok]])
 
         return f"""## Conclusion & Next Steps
 
 ### Status
-{"\n".join([f"- {ok}" for ok in [p99_ok, qps_ok, hit_ok]])}
+{status_items}
 
 ### Observations
 - Latency: P99 at {p99:.1f}ms shows {"acceptable" if p99 < 5000 else "room for improvement"}

@@ -1,12 +1,12 @@
 """EvalPipeline — orchestration layer for the benchmarking system."""
+
 import json
 import logging
 import time
 from pathlib import Path
-from typing import Optional, Union
 
+from ..core.models import BatchConfig, ChunkedPrefillConfig
 from ..core.ports import InferenceEngine
-from ..core.models import ChunkedPrefillConfig, BatchConfig
 from ..core.scheduler import Scheduler
 
 logger = logging.getLogger(__name__)
@@ -28,8 +28,8 @@ class EvalPipeline:
     def __init__(
         self,
         adapter: InferenceEngine,
-        scheduler_config: Optional[dict] = None,
-        output_dir: Union[str, Path] = "output/eval",
+        scheduler_config: dict | None = None,
+        output_dir: str | Path = "output/eval",
     ):
         self._adapter = adapter
         self._scheduler_config = scheduler_config or {}
@@ -85,7 +85,9 @@ class EvalPipeline:
             batch_config=batch_config,
         )
 
-    def _run_single_benchmark(self, scheduler: Scheduler, num_requests: int, short_ratio: float) -> dict:
+    def _run_single_benchmark(
+        self, scheduler: Scheduler, num_requests: int, short_ratio: float
+    ) -> dict:
         """Run a single benchmark iteration and return a result dict."""
         from ..core.models import InferenceRequest
 
@@ -172,14 +174,16 @@ class EvalPipeline:
         convergence_p99s = []
 
         for i in range(num_runs):
-            logger.info(f"  Run {i+1}/{num_runs}...")
+            logger.info(f"  Run {i + 1}/{num_runs}...")
             scheduler = self._create_scheduler()
             result = self._run_single_benchmark(scheduler, num_requests, short_ratio)
             aggregator.add_run(result)
             all_latencies.extend([result["p50_ms"]])  # approximate
             convergence_rounds.append(i + 1)
             convergence_p99s.append(result["p99_ms"])
-            logger.info(f"  Run {i+1} complete: P99={result['p99_ms']:.1f}ms QPS={result['qps']:.1f}")
+            logger.info(
+                f"  Run {i + 1} complete: P99={result['p99_ms']:.1f}ms QPS={result['qps']:.1f}"
+            )
 
         # Step 3: Aggregate
         logger.info("Aggregating results...")
@@ -197,7 +201,6 @@ class EvalPipeline:
         logger.info("Generating charts...")
         charts = ChartGenerator(output_dir=self._output_dir)
 
-        p99_mean = next((r.mean for r in aggregated.results if r.metric == "p99_ms"), 0)
         hit_rate = next((r.mean for r in aggregated.results if r.metric == "cache_hit_rate"), 0)
         qps_mean = next((r.mean for r in aggregated.results if r.metric == "qps"), 0)
 
