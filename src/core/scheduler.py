@@ -143,6 +143,8 @@ class Scheduler(SchedulerPort):
                 heapq.heappush(self._queue, pr)
                 break
 
+            # Submit the request to the engine
+            self._engine.submit(pr.request)
             self._running[pr.request.request_id] = pr
 
     def get_queue_status(self) -> QueueStatus:

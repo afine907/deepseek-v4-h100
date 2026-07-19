@@ -15,7 +15,10 @@ from ..core.ports import InferenceEngine, KVCacheManagerPort, MetricsCollectorPo
 
 
 class MockInferenceEngine(InferenceEngine):
-    """Mock inference engine that does not depend on vLLM. For testing and CI."""
+    """Mock inference engine that does not depend on vLLM. For testing and CI.
+
+    Uses a background thread to model async latency — matches VLLMAdapter's pattern.
+    """
 
     def __init__(
         self,
@@ -27,8 +30,34 @@ class MockInferenceEngine(InferenceEngine):
         self._std = std_latency_ms / 1000.0
         self._mock_hit_rate = mock_hit_rate
         self._requests: dict[str, tuple[InferenceRequest, float]] = {}
+        self._completed: dict[str, InferenceResponse] = {}
         self._lock = threading.Lock()
         self._id_counter = 0
+        self._stop_event = threading.Event()
+        self._thread = threading.Thread(target=self._poll_results, daemon=True)
+        self._thread.start()
+
+    def _poll_results(self) -> None:
+        """Background thread: complete requests after modeled latency."""
+        while not self._stop_event.is_set():
+            with self._lock:
+                to_complete = [
+                    rid
+                    for rid, (_, start) in self._requests.items()
+                    if rid not in self._completed and (time.time() - start) >= self._mean
+                ]
+                for rid in to_complete:
+                    request, _ = self._requests[rid]
+                    latency_ms = max(50.0, random.gauss(self._mean * 1000, self._std * 1000))
+                    tokens = random.randint(20, 200)
+                    self._completed[rid] = InferenceResponse(
+                        request_id=rid,
+                        generated_text=f"Mock response for: {request.prompt[:50]}...",
+                        finish_reason=FinishReason.STOP,
+                        latency_ms=latency_ms,
+                        tokens_generated=tokens,
+                    )
+            self._stop_event.wait(0.01)  # poll every 10ms
 
     def submit(self, request: InferenceRequest) -> str:
         with self._lock:
@@ -41,32 +70,19 @@ class MockInferenceEngine(InferenceEngine):
         deadline = time.time() + timeout
         while True:
             with self._lock:
+                if request_id in self._completed:
+                    return self._completed.pop(request_id)
                 if request_id not in self._requests:
                     return None
-                request, start = self._requests[request_id]
-                elapsed = time.time() - start
-
-                if elapsed < self._mean:
-                    remaining = deadline - time.time()
-                    if remaining <= 0:
-                        return None  # Timed out
-                    # Release lock and wait for remainder of latency
-                    time.sleep(min(self._mean - elapsed, remaining))
-                    continue
-
-                # Enough time has passed — generate result
-                latency_ms = max(50, random.gauss(self._mean * 1000, self._std * 1000))
-                tokens = random.randint(20, 200)
-                return InferenceResponse(
-                    request_id=request_id,
-                    generated_text=f"Mock response for: {request.prompt[:50]}...",
-                    finish_reason=FinishReason.STOP,
-                    latency_ms=latency_ms,
-                    tokens_generated=tokens,
-                )
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                return None
+            # Wait for result to become available (will be checked in next iteration)
+            time.sleep(min(0.05, remaining))
 
     def cancel(self, request_id: str) -> bool:
         with self._lock:
+            self._completed.pop(request_id, None)
             return self._requests.pop(request_id, None) is not None
 
     def get_status(self) -> EngineStatus:
@@ -76,6 +92,11 @@ class MockInferenceEngine(InferenceEngine):
             device="mock",
             max_batch_size=32,
         )
+
+    def __del__(self):
+        self._stop_event.set()
+        if self._thread.is_alive():
+            self._thread.join(timeout=1.0)
 
 
 class MockKVCacheManager(KVCacheManagerPort):

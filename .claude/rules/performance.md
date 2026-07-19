@@ -15,6 +15,21 @@
 
 ---
 
+### vLLM WSL2 CPU 性能优化（实测有效）
+- **问题**: 首次启动 647 秒，libiomp 警告，输出 11.35 toks/s
+- **两根优化**:（1）`TORCH_COMPILE_DISABLE=1` 禁用 JIT 编译；（2）`LD_PRELOAD` 加载优化库
+- **正确做法**:
+  - `TORCH_COMPILE_DISABLE=1` — 禁用 torch.compile 强制 eager mode，启动快 24%（647s→494s）
+  - `LD_PRELOAD=/root/deepseek-local/venv/lib/libiomp5.so:/usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4`
+    - libiomp5.so 在 vLLM venv 中；tcmalloc 系统已安装
+    - 消除 `libiomp is not found in LD_PRELOAD` 警告
+    - 输出速度从 10.34 恢复到 11.36 toks/s
+- **持久化**: 将 LD_PRELOAD 写入 `~/.bashrc`
+- **场景**: WSL2 CPU 推理优化（不适用 H100，H100 有 GPU）
+- **来源**: 2026-07-19，实测对比
+
+---
+
 ### vLLM WSL2 排查要先查文档不要盲目尝试
 - **错误**: 遇到 vLLM WSL2 问题直接本地尝试各种修复，浪费数小时
 - **原因**: vLLM 在 WSL2 上有多个已知问题（fork/OOM/配置），社区有现成方案
