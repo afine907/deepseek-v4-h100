@@ -60,7 +60,8 @@ class Scheduler(SchedulerPort):
             wait_time = time.time() - request.metadata.get("enqueue_time", time.time())
             remaining = request.max_tokens
             # SJF with aging: shorter jobs and older requests get higher priority
-            priority = remaining / (1.0 + wait_time * 0.1)
+            # Dividing by (1 - wait_time * factor): older wait → smaller divisor → higher priority
+            priority = remaining * max(0.01, 1.0 - wait_time * 0.1)
 
             chunks = self._split_into_chunks(request.prompt)
             pr = PrioritizedRequest(
@@ -101,6 +102,13 @@ class Scheduler(SchedulerPort):
                     self._metrics.record_latency(result.latency_ms, "inference")
                     self._metrics.record_throughput(result.tokens_generated)
 
+                    # Bug fix: advance current_chunk for multi-chunk requests
+                    pr = self._running[rid]
+                    if pr.current_chunk < len(pr.chunks) - 1:
+                        # More chunks remaining — advance and re-queue
+                        pr.current_chunk += 1
+                        heapq.heappush(self._queue, pr)
+
             for rid in done_ids:
                 del self._running[rid]
 
@@ -117,17 +125,14 @@ class Scheduler(SchedulerPort):
         max_batch = self._batch_config.max_batch_size
         prefill_budget = int(max_batch * self._batch_config.prefill_ratio)
 
-        prefill_count = 0
-        decode_slots = max_batch - prefill_count
-
         # Count current running prefill vs decode
         running_prefill = sum(
             1 for pr in self._running.values() if pr.current_chunk < len(pr.chunks) - 1
         )
-        running_decode = len(self._running) - running_prefill
+        # Bug fix: decode_slots must account for running prefills (was using prefill_count=0)
+        decode_slots = max(0, max_batch - running_prefill)
 
         prefill_budget = max(0, prefill_budget - running_prefill)
-        decode_slots = max(0, decode_slots - running_decode)
 
         while self._queue and (prefill_budget > 0 or decode_slots > 0):
             pr = heapq.heappop(self._queue)

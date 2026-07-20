@@ -17,6 +17,7 @@
 | [docs/AI_AGENT_ONBOARDING.md](docs/AI_AGENT_ONBOARDING.md) | AI Agent 首次上手 Checklist |
 | [docs/AI_AGENT_COLLAB.md](docs/AI_AGENT_COLLAB.md) | 协作规范：任务交接、冲突处理、进度同步 |
 | [docs/VALIDATION.md](docs/VALIDATION.md) | 验证方案：SWE-bench 评测流程 |
+| [docs/LOCAL_DEV_PLAN.md](docs/LOCAL_DEV_PLAN.md) | 本地开发环境三种部署方案（Mock / WSL2 CPU / Docker Compose） |
 | [docs/brainstorming/](docs/brainstorming/) | 决策记录（历史） |
 | [docs/srs/](docs/srs/) | 系统需求规格 |
 

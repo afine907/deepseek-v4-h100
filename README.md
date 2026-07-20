@@ -57,7 +57,7 @@
 可观测层（Prometheus Metrics）
 ```
 
-详见 [docs/competition-document.md](docs/competition-document.md)
+详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
 ### 架构图
 
@@ -124,7 +124,7 @@ pytest tests/unit/
 
 - 触发条件：显存 > 90%
 - 淘汰粒度：Block-level
-- 参考：[docs/brainstorming/02-kv-cache-lfu.md](docs/brainstorming/02-kv-cache-lfu.md)（⚠️ 文件名 `lfu` 为历史遗留，内容为 LRU）
+- 参考：[docs/brainstorming/02-kv-cache-lru.md](docs/brainstorming/02-kv-cache-lru.md)
 
 ### 2. Chunked Prefill
 
@@ -175,30 +175,45 @@ pytest tests/unit/
 ```
 deepseek-v4-h100/
 ├── Dockerfile                  # 容器镜像构建
-├── launch_h100.sh            # 一键启动脚本
-├── configs/                   # 配置文件
+├── launch_h100.sh             # 一键启动脚本
+├── requirements-dev.txt        # 开发依赖
+├── configs/                    # 配置文件
 │   ├── model.yaml
 │   ├── batching.yaml
+│   ├── scheduler.yaml
 │   └── kv_cache.yaml
-├── src/                       # 源代码
-│   ├── scheduler.py           # 调度层（Chunked Prefill）
-│   ├── kv_cache_manager.py    # KV Cache LRU 管理
-│   ├── inference_engine.py    # vLLM 引擎封装
-│   ├── metrics_exporter.py    # Prometheus 指标
-│   └── control/
-│       └── tuner_interface.py  # Mock 预留
-├── tests/                     # 测试
-│   ├── unit/                  # 单元测试
+├── src/                        # 源代码
+│   ├── core/                   # 核心调度逻辑
+│   │   ├── scheduler.py        # Chunked Prefill + Continuous Batching
+│   │   └── kv_cache_manager.py # KV Cache LRU 管理
+│   ├── adapters/               # 推理引擎适配器
+│   │   ├── vllm_adapter.py     # vLLM 引擎封装
+│   │   └── mock_adapter.py     # Mock 引擎（开发用）
+│   ├── eval/                   # 评测 pipeline
+│   │   ├── pipeline.py         # EvalPipeline 编排层
+│   │   ├── aggregator.py      # MetricsAggregator 多轮统计聚合
+│   │   ├── chart_generator.py  # ChartGenerator 图表生成
+│   │   └── report_generator.py # ReportGenerator Markdown 报告
+│   ├── metrics_exporter.py     # Prometheus 指标导出
+│   ├── control/
+│   │   └── tuner_interface.py  # 调参接口（Mock）
+│   ├── agent/                  # Agent 协作相关
+│   └── config/                 # 配置加载
+├── tests/                      # 测试
+│   ├── unit/                   # 单元测试
 │   ├── integration/            # 集成测试
-│   └── benchmark_*.py         # SWE-bench 评测脚本
-├── docs/                      # 文档
-│   ├── srs/                   # 系统需求规格
+│   └── benchmark_swe.py        # SWE-bench 评测脚本
+├── docs/                       # 文档
+│   ├── srs/                    # 系统需求规格
 │   │   ├── SRS-00-draft.md
-│   │   └── figures/           # 架构图
-│   ├── brainstorming/         # 决策记录
-│   ├── competition-document.md # 参赛文档
-│   └── original-requirements.md
-└── README.md                  # 本文件
+│   │   └── figures/            # 架构图（Mermaid）
+│   ├── brainstorming/          # 决策记录
+│   ├── ARCHITECTURE.md         # 系统架构
+│   ├── STANDARDS.md            # 编码规范
+│   ├── DEVELOPMENT_COMMANDS.md # 开发命令参考
+│   ├── LOCAL_DEV_PLAN.md       # 本地开发环境方案
+│   └── VALIDATION.md           # 验证方案
+└── README.md                   # 本文件
 ```
 
 ---
@@ -207,9 +222,14 @@ deepseek-v4-h100/
 
 | 文档 | 说明 |
 |------|------|
-| [docs/competition-document.md](docs/competition-document.md) | 参赛文档（核心） |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 系统架构（核心） |
+| [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) | 产品规格与问题定义 |
 | [docs/srs/SRS-00-draft.md](docs/srs/SRS-00-draft.md) | 系统需求规格说明书 |
 | [docs/srs/figures/architecture-diagrams.md](docs/srs/figures/architecture-diagrams.md) | 架构图集（Mermaid） |
+| [docs/STANDARDS.md](docs/STANDARDS.md) | 编码规范 |
+| [docs/DEVELOPMENT_COMMANDS.md](docs/DEVELOPMENT_COMMANDS.md) | 开发命令参考 |
+| [docs/LOCAL_DEV_PLAN.md](docs/LOCAL_DEV_PLAN.md) | 本地开发环境三种部署方案 |
+| [docs/VALIDATION.md](docs/VALIDATION.md) | 文档自闭环验证清单 |
 | [docs/brainstorming/](docs/brainstorming/) | 决策过程记录 |
 
 ---
@@ -222,12 +242,17 @@ deepseek-v4-h100/
 # 克隆到本地后
 cd deepseek-v4-h100
 
-# 使用 Claude Code 开发
-claude
+# 安装依赖
+pip install -r requirements-dev.txt
 
-# 或直接运行测试
+# 运行单元测试
 pytest tests/unit/ -v
+
+# 运行 Mock 测试（无 GPU 环境首选）
+pytest tests/ -m mock -v
 ```
+
+详见 [docs/LOCAL_DEV_PLAN.md](docs/LOCAL_DEV_PLAN.md)（三种部署方案：Mock / WSL2 CPU / Docker Compose）
 
 ### 提交代码
 

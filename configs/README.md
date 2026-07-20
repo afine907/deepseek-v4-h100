@@ -15,8 +15,8 @@
 
 | 参数 | 值 | 决策来源 |
 |------|---|---------|
-| `kv_cache.high_watermark` | 0.90 | `docs/brainstorming/02-kv-cache-lfu.md` |
-| `kv_cache.low_watermark` | 0.75 | `docs/brainstorming/02-kv-cache-lfu.md` |
+| `kv_cache.high_watermark` | 0.90 | `docs/brainstorming/02-kv-cache-lru.md` |
+| `kv_cache.low_watermark` | 0.75 | `docs/brainstorming/02-kv-cache-lru.md` |
 | `chunked_prefill.chunk_size` | 512 | `docs/brainstorming/03-chunked-prefill-assumption.md` |
 | `batching.max_batch_size` | 32 | `docs/brainstorming/06-tp8-nccl.md` |
 | `batching.prefill_ratio` | 0.3 | `docs/brainstorming/06-tp8-nccl.md` |

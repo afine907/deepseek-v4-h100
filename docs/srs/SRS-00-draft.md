@@ -140,7 +140,7 @@
 | 淘汰触发 | 显存使用率 > 高水位（默认 90%），或可用 block < 最低阈值 |
 | 淘汰粒度 | Block-level |
 
-**参考：** `docs/brainstorming/02-kv-cache-lfu.md`（⚠️ 文件名 `lfu` 为历史遗留，内容为 LRU）（⚠️ 文件名 `lfu` 为历史遗留，内容为 LRU）
+**参考：** `docs/brainstorming/02-kv-cache-lru.md`
 
 #### 3.1.2 Chunked Prefill 调度
 
@@ -280,7 +280,7 @@
 | 健康检查 | `/health` 端点（vLLM 内置） |
 | 自动重启 | 交由容器基础设施（Docker/k8s），代码层不做 |
 
-**参考：** `docs/brainstorming/02-kv-cache-lfu.md`（⚠️ 文件名 `lfu` 为历史遗留，内容为 LRU）
+**参考：** `docs/brainstorming/02-kv-cache-lru.md`
 
 ### 3.6 交付物需求
 
@@ -306,7 +306,7 @@
 | 文件 | 内容 | 状态 |
 |------|------|------|
 | `docs/brainstorming/01-scope.md` | Scope 边界 + 2周时间评估 | ✅ |
-| `docs/brainstorming/02-kv-cache-lfu.md` | KV Cache LRU 淘汰策略 | ✅ |
+| `docs/brainstorming/02-kv-cache-lru.md` | KV Cache LRU 淘汰策略 | ✅ |
 | `docs/brainstorming/03-chunked-prefill-assumption.md` | Chunked Prefill chunk_size=512 | ✅ |
 | `docs/brainstorming/04-api-contracts.md` | 接口契约（gRPC/进程内） | ✅ |
 | `docs/brainstorming/05-metrics-assumption.md` | 量化指标假设 | ✅ |
@@ -426,7 +426,7 @@ deepseek-v4-h100/
 | 健康检查 | `/health` 端点（vLLM 内置） |
 | 自动重启 | 交由容器基础设施（Docker/k8s），代码层不做 |
 
-**参考：** `docs/brainstorming/02-kv-cache-lfu.md`（⚠️ 文件名 `lfu` 为历史遗留，内容为 LRU）
+**参考：** `docs/brainstorming/02-kv-cache-lru.md`
 
 ### 3.6 交付物需求
 
@@ -452,7 +452,7 @@ deepseek-v4-h100/
 | 决策 | 来源文件 | SRS 章节 | 状态 |
 |------|---------|---------|------|
 | 自动调优砍掉 → Mock 预留 | `01-scope.md` | §3.1.6 | ✅ |
-| KV Cache LRU 淘汰策略 | `02-kv-cache-lfu.md` | §3.1.1 | ✅ |
+| KV Cache LRU 淘汰策略 | `02-kv-cache-lru.md` | §3.1.1 | ✅ |
 | Chunked Prefill chunk_size=512 | `03-chunked-prefill-assumption.md` | §3.1.2 | ✅ |
 | gRPC 接口 + Mock | `04-api-contracts.md` | §3.1.6 | ✅ |
 | 指标假设（待实测校准） | `05-metrics-assumption.md` | §3.2 | ✅ |

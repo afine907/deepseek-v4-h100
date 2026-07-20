@@ -162,3 +162,23 @@ git push origin feature/scheduler-chunked-prefill
 | `configs/kv_cache.yaml` | 淘汰策略、高低水位 |
 
 修改配置后需重启推理服务生效。
+
+---
+
+## 本地开发部署方案
+
+> 完整方案见 [LOCAL_DEV_PLAN.md](LOCAL_DEV_PLAN.md)，含三种部署模式（Mock / WSL2 CPU / Docker Compose）和验证清单。
+
+### 快速验证
+
+```bash
+# 1. Mock 模式（默认，日常开发首选，零依赖）
+python -m pytest tests/unit/ -v --tb=short
+
+# 2. Docker Compose 模式（接近生产）
+# WSL2 内执行：
+docker compose -f docs/docker-compose.local.yml up -d
+docker compose -f docs/docker-compose.local.yml ps
+curl http://localhost:8000/v1/models
+curl http://localhost:8080
+```

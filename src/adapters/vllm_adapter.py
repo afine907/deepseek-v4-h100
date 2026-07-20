@@ -1,11 +1,14 @@
 """vLLM adapter for InferenceEngine port (CPU and GPU modes)."""
 
+import logging
 import os
 import threading
 import time
 
 from ..core.models import EngineStatus, FinishReason, InferenceRequest, InferenceResponse
 from ..core.ports import InferenceEngine
+
+logger = logging.getLogger(__name__)
 
 
 class VLLMAdapter(InferenceEngine):
@@ -97,8 +100,8 @@ class VLLMAdapter(InferenceEngine):
                 # Use async output handling — vLLM generate is synchronous here
                 # The adapter pattern: submit via scheduler which manages async results
                 pass
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Error polling vLLM results: %s", exc)
 
     def submit(self, request: InferenceRequest) -> str:
         self._ensure_loaded()
@@ -144,7 +147,8 @@ class VLLMAdapter(InferenceEngine):
             with self._lock:
                 self._completed[rid] = response
                 del self._pending[rid]
-        except Exception:
+        except Exception as exc:
+            logger.error("vLLM inference failed for request %s: %s", rid, exc)
             with self._lock:
                 if rid in self._pending:
                     del self._pending[rid]
